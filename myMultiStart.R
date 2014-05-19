@@ -1,5 +1,6 @@
 
 # myMultiStart.R  5/12/2014
+# Put on git
 
 require(doParallel)
 require(foreach)

@@ -1,4 +1,6 @@
 # solvingForContour.R  5/12/2014
+# Put on git
+require('testthat')
 
 # source(myMultiStart.R)  # for myMultiStart()
 
@@ -21,9 +23,22 @@
 # The contour is solving g - x0 = 0, i.e. g = x0,
 # where x0 is initial option price.
 
+testG = function() {
+  test_that("g computation works for n=1 and n=2",
+            {u=1.2
+             d=1/u
+             g0 = g(c(u,d),r=0,n=1)
+             g1 = g(c(u,d),r=0,n=2)
+             ans = 100/11
+             g2 = g(c(1.2,0.8),r=0,n=1,K=90)
+             expect_equal(g0,ans)
+             expect_equal(g1,ans)
+             expect_equal(g2,31/2)})
+}
+
 g = function(x,
              r=0.01,
-             s0=100,
+#              s0=100,
              K=100,
              n=100
              ) {
@@ -39,7 +54,6 @@ g = function(x,
   g0 = disc*sum(pr*f)
   return(g0)
 }
-
 
 myPairs = function() {
   ans = drawContour()
