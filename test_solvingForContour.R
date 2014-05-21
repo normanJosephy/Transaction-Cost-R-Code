@@ -1,5 +1,6 @@
 # test_g.R
 
+# Update
 # From command line:
 # test_file(path='test_solvingForContour.R',reporter='tap')
 
