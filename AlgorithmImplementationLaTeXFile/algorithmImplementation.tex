@@ -1,0 +1,2452 @@
+\documentclass[10pt]{article}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{eulervm}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage[parfill]{parskip}
+\usepackage{subfig}
+
+\newcommand{\mys}{\vspace*{24pt}}
+
+\begin{document}
+\begin{center}
+\Large Algorithm Implementation  \\ Summer, 2012
+\end{center}
+
+\mys
+
+\subsection*{Introduction}
+
+This text documents the implementation of two transaction cost
+models of option pricing and hedging: our CRR-based model and
+the Rutkowski model. We simulate market stock prices and determine
+the hedging strategy in each model that maximizes the net residual.
+
+\subsection*{Base Computation}
+The Base computations involve setting model parameters and
+computing the $(u,d)$ pair associated with the given value
+of stock volatility $\sigma$ and option time to expiration.
+
+\subsubsection*{Simulation parameters}
+
+\begin{verbatim}
+File: rutkowskiSimulation.R
+
+rutkowskiConstants = function() {
+  seed   = 12345        # seed set in rutkowskiSimulation()
+  nPaths = 3            # number of paths constructed
+  TimeToExpiration = 1  # time to expiration in years
+  sigma  = 0.20         # annual stock volatility
+  drift  = 0.00         # annual stock drift
+  S0     = 100          # initial stock price at time t=0
+  K      = S0           # at-the-money option strike price
+  R      = K/S0         # normalized strike - used in CRR contour computation
+  # u computed from sigma and h
+  #  by function computeBaseUD() in
+  #  file rutkowskiOptionPriceAndSigma2.R .
+  #  d is computed as 1/u in the same function.
+  lambda = 0.20         # unit transaction cost for buying a share of stock.
+  mu     = 1/6          # unit transaction cost for selling a share of stock.
+  nFlips = 2            # number of rebalancing times.
+  r      = 0            # risk-free interest rate
+  rho    = 1 + r        # risk-free accumulation factor
+  uStart = 1.05         # u range (uStart,uEnd) for computing (u,d) contour.
+  uEnd   = 1.98
+  dStart = 0.70         # d range (dStart,dEnd) for computing (u,d) contour.
+  dEnd   = 0.98
+  nPtsD  = 100          # number of u values used in computing (u,d,c) surface.
+  nPtsU  = 100          # number of d values used in computing (u,d,c) surface.
+  nUDPairsToUse = 5     # number of contour (u,d) pairs to use in algorithm.
+  #
+  constants = c(nPaths=nPaths,TimeToExpiration=TimeToExpiration,
+                sigma=sigma,drift=drift,S0=S0,K=K,R=R,seed=seed,
+                lambda=lambda,mu=mu,nFlips=nFlips,r=r,rho=rho,
+                uStart=uStart,uEnd=uEnd,dStart=dStart,dEnd=dEnd,
+                nPtsD=nPtsD,nPtsU=nPtsU,nUDPairsToUse=nUDPairsToUse)
+  return(constants)
+}
+\end{verbatim}
+
+\subsubsection*{Base (u,d)}
+
+The Base $(u,d)$ pair corresponding to the given stock price volatility $\sigma$
+is computed by the computeBaseUD() function,
+ where \verb!h! is computed \verb!h = TimeToExpiration/nFlips! in the rutkowskiSimulation.R function.
+\[
+u = e^{\sigma \sqrt{h}};\quad h = \frac{\text{Time To Expiration}}{\text{Number Of Rebalances}}
+\]
+
+\begin{verbatim}
+File: rutkowskiOptionPriceAndSigms2.R
+
+computeBaseUD = function(sigma,h) {
+  u = unname(exp(sigma*sqrt(h)))
+  d = unname(1/u)
+  return(c(d=d,u=u))
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> nFlips    = constants['nFlips']
+> TimeToExpiration = constants['TimeToExpiration']
+> sigma     = constants['sigma']
+> h      = TimeToExpiration/nFlips
+> udBase = computeBaseUD(sigma,h)
+> u      = udBase['u']
+> d      = udBase['d']
+>
+> print(c(u,d))
+        u         d
+1.1519099 0.8681234
+\end{verbatim}
+
+
+\subsubsection*{GBM stock price paths}
+
+Stock price paths are computed using a discrete version of the stochastic differential equation
+$$dS = S * (1 + \text{drift}*dt + \sigma * \sqrt{dt} * Z),$$ where $Z$ is a $N(0,1)$ zero mean, variance one
+normal random variate.
+
+\begin{verbatim}
+File: rutkowskiCreateGBMPaths.R
+
+pathSimulation = function(drift=0,sigma=.2,S0=100,nFlips=2,TimeToExpiration=1.0) {
+  dt = TimeToExpiration/nFlips
+  noise = rnorm(nFlips)*sqrt(dt)*sigma  # Vector of scaled Brownian noise
+  s = rep(0,nFlips+1)
+  s[1] = S0
+  shiftedNoise = 1 + drift*dt + noise
+  for (i in 1:nFlips) {
+    s[i+1] = s[i] * shiftedNoise[i]}
+  invisible(s) }
+
+createGBMPaths = function(nPaths=10,TimeToExpiration=1,nFlips=2,
+                          sigma=0.2,drift=0.0,S0=100) {
+  # Create storage for paths and assign row and column names
+  rowN = paste('time-',0:nFlips,sep='')
+  colN = paste('path-',1:nPaths,sep='')
+  pathMatrix = matrix(NA,nrow=nFlips+1,ncol=nPaths,dimnames=list(rowN,colN))
+  # Create paths
+  for (iPath in 1:nPaths) {
+    pathMatrix[,iPath] = pathSimulation(drift=drift,sigma=sigma,S0=S0,
+                                nFlips=nFlips,TimeToExpiration=TimeToExpiration)
+  }  # end iPath loop
+  invisible(pathMatrix)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> pathMatrix = createGBMPaths(nPaths,TimeToExpiration,nFlips,sigma,drift,S0)
+>
+> print(pathMatrix)
+          path-1    path-2    path-3
+time-0 100.00000 100.00000 100.00000
+time-1  93.54929  92.13213  96.26959
+time-2  96.05433  91.49840 108.78347
+\end{verbatim}
+
+
+\subsection*{CRR Base Computation}
+
+There are a number of computations performed by the CRR model. The Base $(u,d)$ pair
+is used to compute the CRR Base option price. That involves folding back the option
+price tree starting at expiration with the option payoffs and using the risk-neutral
+probability measure determined by the Base $(u,d)$ pair and the risk-free rate $r$.
+
+The Base option price is used in constructing the market contour
+$\Sigma_1$ of $(u,d)$ pairs. Our standard procedures are then applied to compute
+the CRR portfolio, residual $\delta$ and transaction cost TCost corresponding to each
+$(u,d)$ pair on the market contour and each simulated stock price path.
+
+\subsubsection*{Base CRR option price}
+
+The functions callOptionPayoff(), riskNeutralProbability(), stock(),
+and optionTree() are used to compute the option price. See the CRR market contour section
+for the code in rutkowskiSimulation() that calls these functions.
+
+\[
+\text{option payoff} = \max({S_T-K,0})
+\]
+\[
+\text{risk neutral probability: } p_u = \frac{R-d}{u-d};\; p_d = \frac{u-R}{u-d}
+\]
+\[
+\text{option price} = \frac{1}{1+r}(p_u * \text{cValueUp} + p_d * \text{cValueDown})
+\]
+
+\begin{verbatim}
+File: crr-1.R
+
+# call option payoff is max(ST-K,0).
+# Note that ST is a vector of stock prices,
+# requiring pmax() to be used.
+callOptionPayoff = function(stockList,K) {
+  ST = stockList[[length(stockList)]]
+  payoff = pmax(ST-K,0)
+  return(payoff)
+}
+
+riskNeutralProbability = function(r,u,d) {
+  R = 1 + r
+  pu = unname((R - d)/(u - d))
+  pd = unname((u - R)/(u - d))
+  prob = c(pu=pu,pd=pd)
+  return(prob)
+}
+
+stock = function(S0,u,d,nFlips) {
+  stkList = list()
+  for (i in 0:nFlips){
+    uIndex = seq(i,0)
+    dIndex = seq(0,i)
+    stkList[[i+1]] = u^uIndex * d^dIndex * S0
+  }
+  return(stkList)
+}
+
+# callTree starts at expiration and works back to initial time
+optionTree = function(S0,K,u,d,r,nFlips) {
+  discountFactor = 1/(1+r)
+  stockList = stock(S0,u,d,nFlips)
+  callTree = list()
+  callTree[[1]] = callOptionPayoff(stockList,K)
+  cValues = callTree[[1]]
+  probability = riskNeutralProbability(r,u,d)
+  pu = unname(probability['pu'])
+  pd = unname(probability['pd'])
+  for (j in 1:nFlips) {
+    nCValues = length(cValues)
+    cNew = discountFactor * (pu*cValues[-nCValues] + pd*cValues[-1])
+    callTree[[j+1]] = cNew
+    cValues = cNew
+  }
+  return(callTree)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> stockList = stock(S0,u,d,nFlips)
+> stockList
+[[1]]
+100
+
+[[2]]
+[1] 115.19099  86.81234
+
+[[3]]
+[1] 132.68964 100.00000  75.36383
+
+> r         = constants['r']
+> rho       = constants['rho']
+> K         = constants['K']
+> oTree = optionTree(S0,K,u,d,r,nFlips)
+> oTree
+[[1]]
+[1] 32.68964  0.00000  0.00000
+
+[[2]]
+[1] 15.19099  0.00000
+
+[[3]]
+7.059306
+\end{verbatim}
+
+\subsubsection*{Portfolio stock quantity}
+
+The portfolio stock share quantity is given by the option delta:
+\[
+\text{portfolio share quantity } = \frac{\text{change in option price}}{\text{change in stock price}}
+\]
+
+\begin{verbatim}
+File: crr-1.R
+
+# stockQtTree is portfolio stock holding in stock shares
+# At expiration, number of shares set to 1 if option value > 0 (in the money)
+# If option value = 0, then number of shares set to 0.
+stockQtTree = function(callTree,stockTree) {
+  # stockTree is in time order; stockTree[[1]] is time 0 stock
+  # We need stockTree in reverse order; stockTree[[1]] is time T stock
+  # The reversal will then match stockTree with optionTree
+  revStockTree = rev(stockTree)
+  nFlips = length(callTree) - 1
+  dTree = list()
+  endValues = ifelse(callTree[[1]] > 0,1,0)
+  dTree[[1]] = endValues
+  for (j in 1:nFlips) {
+    stockV = revStockTree[[j]]
+    callV  = callTree[[j]]
+    last = length(callV)
+    top = callV[-last] - callV[-1]
+    bot = stockV[-last] - stockV[-1]
+    dTree[[j+1]] = top/bot
+  }
+  return(dTree)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> dTree = stockQtTree(oTree,stockList)
+> dTree
+[[1]]
+[1] 1 0 0
+
+[[2]]
+[1] 1 0
+
+[[3]]
+[1] 0.5352965
+\end{verbatim}
+
+\subsubsection*{Portfolio bond cash}
+The cash amount in the bond component of the portfolio is calculated by the following:
+\[
+\text{portfolio bond cash} = \text{option price} - \text{number of shares } * \text{stock price}
+\]
+
+\begin{verbatim}
+File: crr-1.R
+
+bonds = function(optionTree,dTree,stockTree) {
+  nTime  = length(optionTree)
+#  nFlips = nTime - 1
+  revStockTree = rev(stockTree)
+  bondTree = list()
+  for (j in 1:nTime) {
+    bondTree[[j]] = optionTree[[j]] - dTree[[j]] * revStockTree[[j]]
+  }
+  return(bondTree)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> bTree = bonds(oTree,dTree,stockList)
+> bTree
+[[1]]
+[1] -100    0    0
+
+[[2]]
+[1] -100    0
+
+[[3]]
+-46.47035
+\end{verbatim}
+
+\subsubsection*{Portfolio stock value}
+
+The portfolio stock holding in dollars is number of stock shares times stock price.
+
+\[
+\text{stock holding in dollars } = \text{number of shares } * \text{stock price.}
+\]
+
+\begin{verbatim}
+File: crr-1.R
+
+portfolioStockHoldingInDollars = function(dTree,stockTree) {
+  revStockTree = rev(stockTree)
+  portfolioStockInDollars = list()
+  for (j in 1:length(dTree)) {
+    portfolioStockInDollars[[j]] = dTree[[j]] * revStockTree[[j]]
+  }
+  return(portfolioStockInDollars)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> psd = portfolioStockHoldingInDollars(dTree=dTree,stockTree=stockList)
+>
+> psd
+[[1]]
+[1] 132.6896   0.0000   0.0000
+
+[[2]]
+[1] 115.191   0.000
+
+[[3]]
+53.52965
+
+\end{verbatim}
+
+
+\subsection*{CRR market contour}
+
+The following four lines of code in rutkowskiSimulation.R performs the
+computation for constructing the market contour $\Sigma_1$ associated with the
+CRR Base option price. It is stored in the matrix udMatrix1.
+
+The CRR model option value $g_0$  with M steps to expiration is given by the following formula:
+\[
+g_0 = \frac{1}{(1+r)^M} \sum_{j=0}^M \binom{M}{j} p^j (1-p)^{M-j} f(s u^j d^{M-j})
+\]
+where $f$ is the option payoff function, and $\binom{M}{j} p^j (1-p)^{M-j}$ is the
+sequence of binomial distribution values.
+
+\begin{verbatim}
+File: rutkowskiSimulation.R
+
+  dLCRR     = cSurface(nFlips,R,rho,nPtsU,nPtsD,uStart,uEnd,dStart,dEnd,oType)
+  oTree     = optionTree(S0,K,u,d,r,nFlips)
+  # Reverse the option tree to access time t=0 option price as entry [[1]].
+  priceBaseCRR = unname(rev(oTree)[[1]])
+  udMatrix1    = getContourCRR(dL=dLCRR,S0=S0,optionPrice=priceBaseCRR,scaleBy=scaleBy)
+\end{verbatim}
+
+The cSurface() function collects option prices into the matrix udMatrix1.
+
+The cValue() function computes one normalized option value.
+
+The function contourLines() is an R function that computes the contour.
+
+\begin{verbatim}
+File: sigma1Contour.R
+
+cValue = function(n,u,d,R,rho,oType) {
+  # compute a single option rational price value
+  # initial stock price = 1
+  # Both K and S0 are normalized by R=K/S0, S0/S0
+  p = (rho - d)/(u - d)
+  stopifnot(p>0,p<1)
+  # Do entire sum over [0,n]; the pmax will chop out the zeros.
+  uv = u ** seq(0,n)
+  dv = d ** seq(n,0)
+  dbin = dbinom(seq(0,n),n,p)
+  #   intrinsicValue = pmax(R - uv*dv,0)
+  if (oType == 'call') {
+    intrinsicValue = pmax(uv*dv - R,0)
+  } else {intrinsicValue = pmax(R - uv*dv,0)}
+  cV = sum(intrinsicValue * dbin)
+  # Note: un-normalized c would be
+  #  cV = sum(pmax(K - uv*dv*s,0) * dbin)
+  # where s is initial stock price
+  return(cV)
+}
+
+# Create array of c(u,d) values
+cSurface = function(nFlips=2,R=1,rho=1,nPtsU=9,nPtsD=9,
+            uStart=1.1,uEnd=1.9,dStart=0.80,dEnd=0.96,oType='call') {
+  cSurfaceArray = array(data=0,dim=c(nPtsU,nPtsD))
+  uV = seq(uStart,uEnd,length.out=nPtsU)
+  dV = seq(dStart,dEnd,length.out=nPtsD)
+  for (i in seq(1,nPtsU)){
+    u = uV[i]
+    for (j in seq(1,nPtsD)){
+      d = dV[j]
+      cSurfaceArray[i,j] = cValue(nFlips,u,d,R,rho,oType)
+    }
+  }
+  return(list(u=uV,d=dV,c=cSurfaceArray))
+}
+
+# dL list is returned from cSurface().
+getContourCRR = function(dL,S0=100,optionPrice=40,scaleBy=100) {
+  #
+  scaledCLevel = round(optionPrice/S0 * scaleBy,2)
+  # scaledCLevel matches contour label value
+  cLines = contourLines(dL$u,dL$d,scaleBy*dL$c,levels=scaledCLevel)
+  if (length(cLines) == 0) {stop('No CRR contour. Exiting program')
+  } else {return(cbind(u=cLines[[1]]$x,d=cLines[[1]]$y))}
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+>nFlips
+     2
+> u
+1.15191
+> d
+0.8681234
+> R
+1
+> rho
+  1
+> oType='call'
+> cV = cValue(n=nFlips,u=u,d=d,R=R,rho=rho,oType=oType)
+> cV
+[1] 0.07059306
+
+> uStart    = constants['uStart']
+> uEnd      = constants['uEnd']
+> dStart    = constants['dStart']
+> dEnd      = constants['dEnd']
+> nPtsU     = constants['nPtsU']
+> nPtsD     = constants['nPtsD']
+>
+> dLCRR     = cSurface(nFlips,R,rho,nPtsU,nPtsD,uStart,uEnd,dStart,dEnd,oType)
+>
+> dLCRR$u[1:5]
+[1] 1.050000 1.059394 1.068788 1.078182 1.087576
+> dLCRR$d[1:5]
+[1] 0.7000000 0.7028283 0.7056566 0.7084848 0.7113131
+> round(dLCRR$c[1:5,1:5],digits=4)
+       [,1]   [,2]   [,3]   [,4]   [,5]
+[1,] 0.0753 0.0751 0.0749 0.0747 0.0745
+[2,] 0.0852 0.0850 0.0847 0.0844 0.0841
+[3,] 0.0942 0.0938 0.0935 0.0932 0.0928
+[4,] 0.1022 0.1018 0.1014 0.1010 0.1006
+[5,] 0.1095 0.1091 0.1086 0.1081 0.1076
+
+> oTree     = optionTree(S0,K,u,d,r,nFlips)
+> # Reverse the option tree to access time t=0 option price as entry [[1]].
+> priceBaseCRR = unname(rev(oTree)[[1]])
+> udMatrix1    = getContourCRR(dL=dLCRR,S0=S0,optionPrice=priceBaseCRR,scaleBy=scaleBy)
+> dim(udMatrix1)
+[1] 173   2
+> udMatrix1[1:10,]
+             u         d
+ [1,] 1.050000 0.7560030
+ [2,] 1.050061 0.7565657
+ [3,] 1.050376 0.7593939
+ [4,] 1.050703 0.7622222
+ [5,] 1.051042 0.7650505
+ [6,] 1.051395 0.7678788
+ [7,] 1.051762 0.7707071
+ [8,] 1.052143 0.7735354
+ [9,] 1.052539 0.7763636
+[10,] 1.052953 0.7791919
+\end{verbatim}
+ Note that my two graphics routines, plotSurface(dL) and plotContour(cL) are in file sigma1Contour.R.
+
+\subsection*{CRR Portfolio, Delta And Cost Computations}
+
+\subsubsection*{Simulation code to call computational functions}
+The following lines of code from rutkowskiSimulation() call the functions
+that will compute the portfolio of stock shares and bond cash, the residual
+delta and the transaction cost for each stock price value on each stock price
+path and each $(u,d)$ pair on the CRR market contour.
+
+\begin{verbatim}
+File: rutkowskiSimulation()
+
+  for (iUDPair in 1:nUDPairsToUse) {  # loop over ud pairs
+    ud = udMatrixCRR[iUDPair,]
+    u = ud[1]
+    d = ud[2]
+    for (iPath in 1:nPaths) {    # loop over paths
+      path         = pathMatrix[,iPath]
+      pathLength   = length(path)
+      pathDropLast = path[-pathLength]
+      psi          = path[-1]/pathDropLast
+      gi           = createGi(path,K,u,d,r)
+      portfolio    = createPortfolioCRR(gi,path,u,d,r,K)
+      delta        = createDelta(gi,u,d,psi)
+      tCost        = createTCosts(path,portfolio[,1],lambda,mu)
+      deltaBigCRR[,iPath,iUDPair] = unname(delta)
+      costBigCRR[,iPath,iUDPair]  = unname(tCost)
+      portBigCRR[,,iPath,iUDPair] = portfolio
+    }     # end loop over iPath
+  }       # end loop over iUDPair
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+# Required inputs
+> lambda    = constants['lambda']
+> mu        = constants['mu']
+>
+> lambda
+lambda
+   0.2
+> mu
+       mu
+0.1666667
+> iPath=1
+# Results
+>
+> pathMatrix
+          path-1    path-2    path-3
+time-0 100.00000 100.00000 100.00000
+time-1  93.54929  92.13213  96.26959
+time-2  96.05433  91.49840 108.78347
+> path
+   time-0    time-1    time-2
+100.00000  93.54929  96.05433
+> pathDropLast
+   time-0    time-1
+100.00000  93.54929
+> psi
+   time-1    time-2
+0.9354929 1.0267778
+> portfolio
+         stock #    bond $
+time-0 0.5352965 -46.47035
+time-1 0.2923137 -23.73948
+time-2 0.0000000   0.00000
+> delta
+      time-1       time-2
+4.440892e-16 4.338520e+00
+> tCost
+   time-0    time-1    time-2
+10.705931  3.788478  4.679666
+\end{verbatim}
+
+
+The above code calls the create... functions in file residualsCRR.R to
+perform the actual computations.
+
+\subsubsection*{CRR  transaction cost}
+
+Transaction costs are computed by the product of the change in the
+quantity of stock shares times the current stock price times the
+transaction cost of one share (called 'factor'), which is either $\lambda$ if the stock
+is purchased or $\mu$ if the share is sold.
+
+\[
+\text{transaction cost } = \text{change in stock quantity } * \text{factor} * \text{stock price}
+\]
+
+\begin{verbatim}
+File: residualsCRR.R
+
+# All costs will be positive.
+createTCosts = function(sPath,portShareQt,lambda,mu,verbose=FALSE){
+  # Prepend 0 to share quantity, to compute setup transaction cost
+  portShareQtWithZero = c(0,portShareQt)
+  changeShareQt       = diff(portShareQtWithZero)
+  factor              = lambda * (changeShareQt > 0) - mu * (changeShareQt <= 0)
+  tCost               = changeShareQt * sPath * factor
+  invisible(tCost)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+# Required input
+> sPath       = path
+# Results
+> portShareQtWithZero
+             time-0    time-1    time-2
+0.0000000 0.5352965 0.2923137 0.0000000
+> changeShareQt
+    time-0     time-1     time-2
+ 0.5352965 -0.2429828 -0.2923137
+> factor
+    time-0     time-1     time-2
+ 0.2000000 -0.1666667 -0.1666667
+> tCost
+   time-0    time-1    time-2
+10.705931  3.788478  4.679666
+\end{verbatim}
+
+
+\subsubsection*{CRR  $\delta$}
+
+The residual $\delta$ is computed from the stock price jumps and the gi functions,
+whose values are computed by createGi() function. At any node in the CRR option value tree,
+the giU value is the option value at the next node with stock price S*u; the giD value
+is the option value at the next node with stock price S*d; the giT value is the
+option value at the next node with stock price S*(stock jump). These three values
+are computed by calling the function optionTree with the appropriate arguments.
+The delta value is then given by
+\[
+\delta_k(d,u) = \frac{u-\psi_k}{u-d} g_k(d,u,S_{k-1}d) + \frac{\psi_k - d}{u-d}g_k(d,u,S_{k-1}u) - g_k(d,u,S_{k-1}\psi_k)
+\]
+
+\begin{verbatim}
+File: residualsCRR.R
+
+createDelta = function(gi,u,d,psi) {
+  giU = gi[,'giu']
+  giD = gi[,'gid']
+  giT = gi[,'git']
+  delta  = (u - psi)/(u-d) * giD + (psi - d)/(u-d) * giU - giT
+  return(delta)
+}
+
+createGi = function(path,K,u,d,r) {
+  pathLength    = length(path)
+  nFlips        = pathLength - 1
+  psi           = c(path[-1]/path[-pathLength])
+  gi            = matrix(NA,nrow=nFlips,ncol=3)
+  colnames(gi)  = c('giu','gid','git')
+  rownames(gi)  = paste('time-',1:nFlips,sep='')
+  for (iTime in 1:nFlips) {
+    SiMinus1    = path[iTime]
+    kFlips      = nFlips - iTime
+    psiValue    = psi[iTime]
+    if (kFlips == 0) {
+      # Terminal nodes have option payoff as option value
+      giU =  max(SiMinus1*u - K,0)
+      giD =  max(SiMinus1*d - K,0)
+      giT =  max(SiMinus1*psiValue - K,0)
+    } else {
+      otreeU = optionTree(SiMinus1*u,K,u,d,r,kFlips)
+      giU    = rev(otreeU)[[1]]
+      otreeD = optionTree(SiMinus1*d,K,u,d,r,kFlips)
+      giD    = rev(otreeD)[[1]]
+      otreeT = optionTree(SiMinus1*psiValue,K,u,d,r,kFlips)
+      giT    = rev(otreeT)[[1]]
+    }  # end else statement
+    gi[iTime,] = c(giU,giD,giT)
+  }    # end iTime loop
+  return(gi)
+}
+\end{verbatim}
+
+\subsubsection*{Example: createGi()}
+
+These are the results of calling createGi().
+
+\begin{verbatim}
+# Required constants
+> path
+   time-0    time-1    time-2
+100.00000  93.54929  96.05433
+> K
+100
+> u
+1.15191
+> d
+0.8681234
+> r
+0
+# createGi code
+
+> pathLength    = length(path)
+> nFlips        = pathLength - 1
+> psi           = c(path[-1]/path[-pathLength])
+
+# Results when kFlips > 0
+
+> pathLength
+[1] 3
+> nFlips
+[1] 2
+> psi
+   time-1    time-2
+0.9354929 1.0267778
+> iTime
+[1] 1
+> SiMinus1
+time-0
+   100
+> kFlips
+[1] 1
+> psiValue
+   time-1
+0.9354929
+> otreeU
+[[1]]
+[1] 32.68964  0.00000
+
+[[2]]
+15.19099
+> giU
+15.19099
+
+> otreeD
+[[1]]
+[1] 0 0
+
+[[2]]
+0
+> giD
+0
+> otreeT
+[[1]]
+[1] 7.76035 0.00000
+
+[[2]]
+3.606262
+> giT
+3.606262
+
+# Results when kFlips = 0
+> giU
+[1] 7.76035
+> giD
+[1] 0
+> giT
+[1] 0
+\end{verbatim}
+
+\subsubsection*{Example: createDelta()}
+
+\begin{verbatim}
+> path
+   time-0    time-1    time-2
+100.00000  93.54929  96.05433
+> psi
+   time-1    time-2
+0.9354929 1.0267778
+> K
+100
+> u
+1.15191
+> d
+0.8681234
+> r
+0
+> gi = createGi(path,K,u,d,r)
+> gi
+            giu gid      git
+time-1 15.19099   0 3.606262
+time-2  7.76035   0 0.000000
+> delta = createDelta(gi,u,d,psi)
+> delta
+      time-1       time-2
+4.440892e-16 4.338520e+00
+\end{verbatim}
+
+
+\subsubsection*{CRR  portfolio}
+
+The stock quantity $\gamma$ and bond cash $\beta$ portfolio components of the CRR portfolio
+are computed by the following two formulas.
+
+\begin{align*}
+    \gamma_k(d,u) &= \frac{g_{k+1}(d,u,S_k u) - g_{k+1}(d,u,S_kd)}{S_k(u-d)}\\
+    \beta_k(d,u) &= \frac{u g_{k+1}(d,u,S_k d) - d g_{k+1}(d,u,S_k u)}{(1+r)B_k(u-d)}
+\end{align*}
+
+
+\begin{verbatim}
+File: residualsCRR.R
+
+# gi is output of createGi()
+# NOTE: This function does NOT compute portfolio at expiration.
+# Instead, it assigns its value depending upon moneyness of option.
+# The portfolio is either (1,-K) (if call is in the money),
+# or (0,0) (if call is not in the money).
+createPortfolioCRR = function(gi,path,u,d,r,K) {
+  giu      = gi[,'giu']
+  gid      = gi[,'gid']
+  SiMinus1 = path[-length(path)]
+  uMd      = u-d
+  gamma    = (giu - gid)/(SiMinus1*uMd)
+  Bk       = 1  # In formula for bond, there is a Bk = (1+r)^k, which I ignore.
+  rPlus1   = 1 + r
+  beta     = (u*gid - d*giu)/(rPlus1*Bk*uMd)
+# Add a final value to portfolio stock quantity: 1 if in the money, 0 otherwise.
+# Do same for bond: -K if in the money, 0 otherwise.
+  inTheMoney = (path[length(path)] > K)
+  if (inTheMoney) {
+    gamma = c(gamma,1)
+    beta  = c(beta,-K)
+  } else {
+    gamma = c(gamma,0)
+    beta  = c(beta,0)
+  }
+  output   = cbind(gamma,beta)
+  colnames(output) = c('stock #', 'bond $')
+  rownames(output) = paste('time-',0:(nrow(output)-1),sep='')
+  return(output)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+
+# Required inputs
+
+> gi
+            giu gid      git
+time-1 15.19099   0 3.606262
+time-2  7.76035   0 0.000000
+> path
+   time-0    time-1    time-2
+100.00000  93.54929  96.05433
+> u
+      u
+1.15191
+> d
+        d
+0.8681234
+> r
+r
+0
+> K
+  K
+100
+
+> # Results
+
+> giu
+  time-1   time-2
+15.19099  7.76035
+> gid
+time-1 time-2
+     0      0
+> SiMinus1
+   time-0    time-1
+100.00000  93.54929
+> uMd
+0.2837865
+> gamma
+   time-1    time-2
+0.5352965 0.2923137 0.0000000
+> rPlus1
+1
+> beta
+   time-1    time-2
+-46.47035 -23.73948   0.00000
+> inTheMoney
+time-2
+ FALSE
+> output
+         stock #    bond $
+time-0 0.5352965 -46.47035
+time-1 0.2923137 -23.73948
+time-2 0.0000000   0.00000
+\end{verbatim}
+
+
+\subsection*{Rutkowski Base Computations}
+The Rutkowski Base computations compute the Base option price and the market contour associated with that option price.
+The following code lines from rutkowskiSimulation() make the appropriate function calls.
+
+The call to computeBaseUD() is used by both Rutkowski and CRR to determine the Base $(u,d)$ pair.
+
+\begin{verbatim}
+File: rutkowskiSimulation.R
+
+  h      = TimeToExpiration/nFlips
+  udBase = computeBaseUD(sigma,h)
+  u      = udBase['u']
+  d      = udBase['d']
+  priceBaseRut   = computeBasePrice(u,d,lambda,mu,r,S0,K,nFlips)
+  dLRutkowski    = computeGridPrice(uStart,uEnd,dStart,dEnd,nPtsU,nPtsD,
+                                 lambda,mu,r,S0,K,nFlips)
+  udMatrix2   = getContourRutkowski(dLRutkowski,priceBaseRut)
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> h
+[1] 0.5
+> udBase
+        d         u
+0.8681234 1.1519099
+> priceBaseRut
+[1] 30.98742
+> dLRutkowski$u[1:5]
+[1] 1.050000 1.059394 1.068788 1.078182 1.087576
+> dLRutkowski$d[1:5]
+[1] 0.7000000 0.7028283 0.7056566 0.7084848 0.7113131
+> round(dLRutkowski$c[1:5,1:5],digits=3)
+       [,1]   [,2]   [,3]   [,4]   [,5]
+[1,] 26.826 27.865 28.839 29.755 30.615
+[2,] 26.808 27.842 28.813 29.725 30.581
+[3,] 26.789 27.820 28.787 29.694 30.546
+[4,] 26.771 27.798 28.761 29.664 30.512
+[5,] 26.752 27.775 28.734 29.633 30.477
+> dim(udMatrix2)
+[1] 147   2
+> round(udMatrix2[1:10,],digits=4)
+           u      d
+ [1,] 1.0500 0.7093
+ [2,] 1.0594 0.7094
+ [3,] 1.0688 0.7095
+ [4,] 1.0782 0.7096
+ [5,] 1.0876 0.7097
+ [6,] 1.0970 0.7098
+ [7,] 1.1064 0.7099
+ [8,] 1.1158 0.7101
+ [9,] 1.1252 0.7102
+[10,] 1.1345 0.7103
+\end{verbatim}
+
+\subsubsection*{computeBasePrice function}
+
+The computeBasePrice() function calls three functions from the rutkowskw-2.R file
+to perform the actual computations required for option pricing.
+
+The function prob() computes the pair of Rutkowski probability measures.
+
+The function computef1f2() computes the Rutkowski $f1,f2$ functions.
+
+The function optionPriceRut() computes the option price
+
+\begin{verbatim}
+File: rutkowskiOptionPriceAndSigma2.R
+
+# compute option price using Rutkowski algorithm
+computeBasePrice = function(u,d,lambda=.2,mu=1/6,r=0,
+                            S0=100,K=100,nFlips=2){
+  p      = prob(lambda,mu,r,u,d)
+  phat   = p['phat']
+  ptilda = p['ptilda']
+  stockList = stock(S0,u,d,nFlips)
+  fStored   = computeF1F2(stockList,S0,u,d,nFlips,K,lambda,mu,phat,ptilda,r)
+  price     = optionPriceRut(phat,r,fStored)
+  return(unname(price))
+}
+\end{verbatim}
+
+\subsubsection*{Example: computeBasePrice()}
+
+\begin{verbatim}
+> p
+     phat    ptilda
+0.7233205 0.1668000
+> phat
+     phat
+0.7233205
+> ptilda
+ptilda
+0.1668
+> stockList
+[[1]]
+100
+
+[[2]]
+[1] 115.19099  86.81234
+
+[[3]]
+[1] 132.68964 100.00000  75.36383
+
+> fStored
+$`time=2`
+           f1      f2
+[1,] 59.22757 10.5747
+[2,]  0.00000  0.0000
+[3,]  0.00000  0.0000
+
+$`time=1`
+           f1       f2
+[1,] 42.84051 9.879159
+[2,]  0.00000 0.000000
+
+$`time=0`
+           f1       f2
+[1,] 30.98742 7.145798
+
+> price
+30.98742
+\end{verbatim}
+
+\subsubsection*{computeF1F2 function}
+
+The computef1f2 function utilizes helper functions prob(),callPayoffGH(), fAtExpiration() and updateF().
+
+The two probability measures in the Rutkowski algorithm computed by function prob() are
+\begin{align*}
+    \hat{p} &= \frac{(1+\lambda)(1+r) - (1-\mu)d}{(1+\lambda)u - (1-\mu)d}\\
+    \tilde{p} &= \frac{(1-\mu)(1+r) - (1-\mu)d}{(1+\lambda)u - (1-\mu)d}
+\end{align*}
+
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+prob = function(lambda,mu,r,u,d) {
+  l1 = 1 + lambda
+  m1 = 1 - mu
+  r1 = 1 + r
+  top = unname(l1*r1 - m1*d)
+  bot = unname(l1*u - m1*d)
+  phat = top/bot
+  top1 = unname(m1*r1 - m1*d)
+  ptilda = top1/bot
+  return(c(phat=phat,ptilda=ptilda))
+}
+\end{verbatim}
+
+\subsubsection*{Example: prob}
+
+\begin{verbatim}
+# Required inputs
+> lambda
+lambda
+   0.2
+> mu
+       mu
+0.1666667
+> r
+r
+0
+> u
+      u
+1.15191
+> d
+        d
+0.8681234
+
+# Results
+> l1
+lambda
+   1.2
+> m1
+       mu
+0.8333333
+> r1
+1
+> top
+[1] 0.4765638
+> bot
+[1] 0.6588557
+> phat
+[1] 0.7233205
+> top1
+[1] 0.1098971
+> ptilda
+[1] 0.1668
+\end{verbatim}
+
+
+
+The callPayoffGH() function assigns either stock price ST or 0 to g,
+depending upon the option being in or not in the money.
+It similiarly assigns value $-K$ or 0 to h.
+
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+# callPayoffGH is by delivery: g=ST,h=-K if in the money
+callPayoffGH = function(ST,K) {
+  g = ifelse(ST > K,ST,0)
+  h = ifelse(ST > K,-K,0)
+  return(cbind(g=g,h=h))
+}
+\end{verbatim}
+
+\subsubsection*{Example: callPayoffGH}
+
+\begin{verbatim}
+# Required inputs
+> stockList
+[[1]]
+100
+
+[[2]]
+[1] 115.19099  86.81234
+
+[[3]]
+[1] 132.68964 100.00000  75.36383
+
+> stockList[[3]]
+[1] 132.68964 100.00000  75.36383
+> expirationPrices = stockList[[3]]
+> expirationPrices
+[1] 132.68964 100.00000  75.36383
+> K
+100
+
+# Results
+> callPayoffGH(expirationPrices,K)
+            g    h
+[1,] 132.6896 -100
+[2,]   0.0000    0
+[3,]   0.0000    0
+\end{verbatim}
+
+\subsubsection*{fAtExpiration function}
+
+The fAtExpiration() function assigns terminal values to $f1,f2$ as follows:
+
+\[
+f1_i = h_i + (1 + \lambda)g_i,\quad f2_i = h_i + (1-\mu)g_i
+\]
+
+For folding back the $f1f2$ trees, the function updateF() uses the formulas
+
+\begin{align*}
+    f1(s) &= \frac{1}{1+r}(\hat{p} f1(u s) + (1 - \hat{p})f2(d s))\\
+    f2(s) &= \frac{1}{1+r}(\tilde{p} f1(u s) + (1 - \tilde{p})f2(d s))
+\end{align*}
+
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+fAtExpiration = function(g,h,lambda,mu) {
+  f1 = h + (1+lambda)*g
+  f2 = h + (1 - mu)*g
+  return(cbind(f1=f1,f2=f2))
+}
+
+updateF = function(phat,ptilda,r,jTime,f1,f2){
+  numberOfStates = jTime+1
+  phatC   = 1 - phat
+  ptildaC = 1 - ptilda
+  f1Update = rep(NA,numberOfStates)
+  f2Update = rep(NA,numberOfStates)
+  rFactor = 1/(1+r)
+  for (iState in 1:numberOfStates) {
+    f1Update[iState] = rFactor*(phat   * f1[iState] + phatC   * f2[iState+1])
+    f2Update[iState] = rFactor*(ptilda * f1[iState] + ptildaC * f2[iState+1])
+  }
+  return(cbind(f1=f1Update,f2=f2Update))
+}
+\end{verbatim}
+
+\subsubsection*{Example: fAtExpiration and updateR}
+
+\begin{verbatim}
+# Required inputs
+> stockList
+[[1]]
+100
+
+[[2]]
+[1] 115.19099  86.81234
+
+[[3]]
+[1] 132.68964 100.00000  75.36383
+
+> ST = stockList[[3]]
+> ST
+[1] 132.68964 100.00000  75.36383
+> gh = callPayoffGH(ST,K)
+> gh
+            g    h
+[1,] 132.6896 -100
+[2,]   0.0000    0
+[3,]   0.0000    0
+
+# Results
+> f1f2 = fAtExpiration(gh[,'g'],gh[,'h'],lambda,mu)
+> f1f2
+           f1      f2
+[1,] 59.22757 10.5747
+[2,]  0.00000  0.0000
+[3,]  0.00000  0.0000
+> phat
+[1] 0.7233205
+> ptilda
+[1] 0.1668
+> r
+r
+0
+> jTime
+[1] 1
+> fUpdated = updateF(phat,ptilda,r,jTime,f1,f2)
+> fUpdated
+           f1       f2
+[1,] 42.84051 9.879159
+[2,]  0.00000 0.000000
+\end{verbatim}
+
+
+The computeF1F2 function calls callPayoffGH() to initialize f1,f2, and
+iteratively calls updateF() to compute the folded back f1,f2 values.
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+computeF1F2 = function(stockList,S0,u,d,nFlips,K,lambda,mu,phat,ptilda,r) {
+  # create storage for f1,f2
+  fStored = list()
+  # calculate at expiration the g and h vectors
+  ST = stockList[[length(stockList)]]
+  gh = callPayoffGH(ST,K)
+  g  = gh[,'g']
+  h  = gh[,'h']
+  # compute f1,f2 at expiration
+  f12 = fAtExpiration(g,h,lambda,mu)
+  f1  = f12[,'f1']
+  f2  = f12[,'f2']
+  ifStored = 1
+  fStored[[ifStored]] = f12
+  # loop over time to compute f1,f2 at all non-terminal nodes
+  lastJTime = nFlips # jTime goes from 0 to nFlips
+  #
+  # fold f1,f2 tree backwards from jTime = lastJTime-1 to jTime=0
+  for (jTime in seq(lastJTime-1,0)) {
+    fUpdated            = updateF(phat,ptilda,r,jTime,f1,f2)
+    ifStored            = ifStored + 1
+    fStored[[ifStored]] = fUpdated
+    f1                  = fUpdated[,'f1']
+    f2                  = fUpdated[,'f2']
+  }
+  names(fStored) = rev(timeNames(nFlips+1))
+  return(fStored)
+}
+\end{verbatim}
+
+\subsubsection*{Rutkowski option value}
+
+The Rutkowski option value is computed from the folded back f1,f2 values in the optionPriceRut() function
+using the formula
+\[
+\text{option value } = \frac{1}{1+r} \left(\hat{p} f_1 + (1-\hat{p}) f_2\right)
+\]
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+optionPriceRut = function(phat,r,fStored) {
+  nTime   = length(fStored)
+  # fStored is backwards; first entry is at expiration
+  fValues = rev(fStored)[[2]]
+  fUp     = fValues[1,'f1']
+  fDown   = fValues[2,'f2']
+  optionValue = 1/(r+1)*(phat*fUp + (1 - phat)*fDown)
+  return(optionValue)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+fStored = computeF1F2(stockList,S0,u,d,nFlips,K,lambda,mu,phat,ptilda,r)
+> fStored
+$`time=2`
+           f1      f2
+[1,] 59.22757 10.5747
+[2,]  0.00000  0.0000
+[3,]  0.00000  0.0000
+
+$`time=1`
+           f1       f2
+[1,] 42.84051 9.879159
+[2,]  0.00000 0.000000
+
+$`time=0`
+           f1       f2
+[1,] 30.98742 7.145798
+
+# Results
+> nTime
+[1] 3
+> fValues
+           f1       f2
+[1,] 42.84051 9.879159
+[2,]  0.00000 0.000000
+> fUp
+      f1
+42.84051
+> fDown
+f2
+ 0
+> optionValue
+30.98742
+\end{verbatim}
+
+
+\subsubsection*{Rutkowski Contour}
+
+The call to computeGridPrice creates a table of option prices for a sequence of $u$ values 'crossed' with a
+sequence of $d$ values. The getContourRutkowski() function then extracts the market contour from this
+table of option values.
+
+
+\begin{verbatim}
+File: rutkowskiOptionPriceAndSigma2.R
+
+computeGridPrice = function(uStart,uEnd,dStart,dEnd,nPtsU,nPtsD,
+                            lambda,mu,r,S0,K,nFlips){
+  uValues = seq(uStart,uEnd,length=nPtsU)
+  dValues = seq(dStart,dEnd,length=nPtsD)
+  priceArray = matrix(NA,nrow=nPtsD,ncol=nPtsU)
+  for (i in 1:nPtsU) { # each column i fixes one u value
+    u = uValues[i]
+    for (j in 1:nPtsD) { # each row j fixes one d value
+      d = dValues[j]
+      priceArray[j,i] = computeBasePrice(u=u,d=d,lambda=lambda,mu=mu,
+                                         r=r,S0=S0,K=K,nFlips=nFlips)
+    } # end j loop
+  }   # end i loop
+  invisible(list(u=uValues,d=dValues,c=priceArray))
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+# Returned value:
+dL = list(u=uValues,d=dValues,c=priceArray)
+> dL$u[1:5]
+[1] 1.050000 1.059394 1.068788 1.078182 1.087576
+> dL$d[1:5]
+[1] 0.7000000 0.7028283 0.7056566 0.7084848 0.7113131
+> dL$c[1:5,1:5]
+         [,1]     [,2]     [,3]     [,4]     [,5]
+[1,] 26.82588 27.86461 28.83942 29.75478 30.61480
+[2,] 26.80763 27.84247 28.81331 29.72466 30.58062
+[3,] 26.78927 27.82018 28.78704 29.69434 30.54624
+[4,] 26.77078 27.79776 28.76060 29.66384 30.51165
+[5,] 26.75217 27.77518 28.73399 29.63316 30.47685
+\end{verbatim}
+
+\begin{verbatim}
+getContourRutkowski = function(dL,S0,oPrice) {
+  # NO SCALING IN COMPUTATION OF c.
+  cLines = contourLines(dL$u,dL$d,dL$c,levels=oPrice)
+  if (length(cLines) == 0) {stop('No Rutkowski contour. Exiting program')
+  } else {return(cbind(u=cLines[[1]]$x,d=cLines[[1]]$y))}
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> priceBaseRut
+[1] 30.98742
+> cLines = contourLines(dL$u,dL$d,dL$c,levels=priceBaseRut)
+> cL = cbind(u=cLines[[1]]$x,d=cLines[[1]]$y)
+> dim(cL)
+[1] 156   2
+> cL[1:5,]
+            u         d
+[1,] 1.050000 0.7126167
+[2,] 1.059394 0.7127435
+[3,] 1.068788 0.7128723
+[4,] 1.078182 0.7130032
+[5,] 1.087576 0.7131363
+\end{verbatim}
+
+\subsection*{Rutkowski Portfolio, Delta And Cost Computations}
+
+The following lines of code call the functions that compute portfolio, delta and cost in the Rutkowski model.
+Note that the delta values are computed for all paths in one call to createDeltaRutkowski(), while the
+cost values and portfolio components are computed in a loop over each path in the pathMatrix.
+
+\begin{verbatim}
+File: rutkowskiSimulation.R
+
+  # Choose nUDPairsToUse number of (u,d) pairs from udMatrix2
+  nUDPairsRut    = nrow(udMatrix2)
+  rowsToUseRut   = round(seq(1,nUDPairsRut,length=nUDPairsToUse))
+  udMatrixRut    = udMatrix2[rowsToUseRut,,drop=FALSE]
+  colnames(udMatrixRut) = c('u','d')
+# loop over nUDPairsToUse (u,d) pairs
+  for (iUDPair in 1:nUDPairsToUse) {  # loop over ud pairs
+    ud = udMatrixRut[iUDPair,]
+    u = ud[1]
+    d = ud[2]
+    rutOut   = createDeltaRutkowski(pathMatrix,lambda,mu,r,u,d,K,verbose)
+    deltaRut = rutOut$delta
+    deltaBigRut[,,iUDPair] = deltaRut
+    GMatrix  = rutOut$GMatrix
+    HMatrix  = rutOut$HMatrix
+    #
+    for (iPath in 1:nPaths) {
+      path     = pathMatrix[,iPath]
+      G        = GMatrix[,iPath]
+      shareQt  = G/path
+      costRut  = createTCosts(path,shareQt,lambda,mu)
+      costBigRut[,iPath,iUDPair]   = costRut
+      portBigRut[,1,iPath,iUDPair] = GMatrix[,iPath]
+      portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
+                            }  # end iPath loop
+                        }  #end iUDPair loop
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+
+# Required inputs
+
+> nUDPairsRut
+[1] 147
+> nUDPairsToUse
+[1] 10
+> rowsToUseRut
+ [1]   1  17  33  50  66  82  98 115 131 147
+> udMatrixRut
+             u         d
+ [1,] 1.050000 0.7092913
+ [2,] 1.200303 0.7111624
+ [3,] 1.341212 0.7136203
+ [4,] 1.482121 0.7172347
+ [5,] 1.613636 0.7228046
+ [6,] 1.582168 0.7339394
+ [7,] 1.660606 0.7429792
+ [8,] 1.792121 0.7512850
+ [9,] 1.900134 0.7650505
+[10,] 1.980000 0.7857398
+
+# Results for first iUDPair.
+
+> iUDPair=1
+> ud = udMatrixRut[iUDPair,]
+> u = ud[1]
+> d = ud[2]
+> round(ud,digits=4)
+     u      d
+1.0500 0.7093
+> names(rutOut)
+[1] "delta"      "GMatrix"    "HMatrix"    "pathMatrix"
+> rutOut$delta
+         path-1  path-2    path-3
+time-1 8.285648 7.76655  1.568195
+time-2 0.000000 0.00000 -6.184142
+> rutOut$GMatrix
+         path-1   path-2    path-3
+time-0 43.95539 43.95539  43.95539
+time-1  0.00000  0.00000  31.84171
+time-2  0.00000  0.00000 108.78347
+> rutOut$HMatrix
+          path-1    path-2     path-3
+time-0 -25.98098 -25.98098  -25.98098
+time-1   0.00000   0.00000  -18.82087
+time-2   0.00000   0.00000 -100.00000
+> rutOut$pathMatrix
+          path-1    path-2    path-3
+time-0 100.00000 100.00000 100.00000
+time-1  93.54929  92.13213  96.26959
+time-2  96.05433  91.49840 108.78347
+
+# Results for first iPath
+
+> iPath=1
+
+> path
+   time-0    time-1    time-2
+100.00000  93.54929  96.05433
+> G
+  time-0   time-1   time-2
+43.95539  0.00000  0.00000
+> shareQt
+   time-0    time-1    time-2
+0.4395539 0.0000000 0.0000000
+> costRut
+  time-0   time-1   time-2
+8.791077 6.853325 0.000000
+\end{verbatim}
+
+
+The delta and portfolio computations are done by createDeltaRutkowski() function. This function calls two helper functions,
+collectGHRutkowski() and rutkowskiDelta(). These two helper functions do the actual updating and collecting of the portfolio G,H and delta.
+The createDeltaRutkowski() function loops over stock price paths to collect portfolios and deltas.
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+# del is delta with NA appended at time 0.
+createDeltaRutkowski = function(pathMatrix,lambda,mu,r,u,d,K,verbose=FALSE) {
+#
+  nPaths = ncol(pathMatrix)
+  nTimes = nrow(pathMatrix)
+  rNames = paste('time-',0:(nTimes-1),sep='')
+  cNames = paste('path-',1:nPaths,sep='')
+  HMatrix = matrix(NA,nrow=nTimes,ncol=nPaths,dimnames=list(rNames,cNames))
+  GMatrix = matrix(NA,nrow=nTimes,ncol=nPaths,dimnames=list(rNames,cNames))
+  colnames(pathMatrix) = paste('path-',1:nPaths,sep='')
+  rownames(pathMatrix) = paste('time-',0:(nTimes-1),sep='')
+  delta = matrix(NA,nrow=nTimes-1,ncol=nPaths)
+  rownames(delta) = paste('time-',1:(nTimes-1),sep='')
+  colnames(delta) = cNames
+  for (i in 1:nPaths) {
+    path        = pathMatrix[,i]
+    oList       = collectGHRutkowski(path,lambda,mu,r,u,d,K)
+    G           = oList$hgInitial[,'G']
+    H           = oList$hgInitial[,'H']
+    GMatrix[,i] = G
+    HMatrix[,i] = H
+    delta[,i]   = rutkowskiDelta(path,H,G,lambda,mu,r)
+  }
+  # Prepare delta
+  del = rbind(rep(NA,ncol(delta)),delta)
+  rownames(del) = NULL # paste('path-',1:nPaths,sep='')
+  colnames(del) = rep('deltaRut',ncol(delta)) # c('time-1','time-2')
+  outputList = list(delta=delta,GMatrix=GMatrix,HMatrix=HMatrix,pathMatrix=pathMatrix)
+  invisible(outputList)
+}
+\end{verbatim}
+
+\subsubsection*{Rutkowski $\delta$}
+
+The formula for computing Rutkowski delta is
+\[
+\text{delta} = H_{i-1}(1+r) - H_i + factor (G_{i-1} \psi - G_i)
+\]
+where $factor$ is $(1+\lambda)$ if $\frac{G_i}{S_i} > \frac{G_{i-1}}{S_{i-1}}$, otherwise it is $(1-\mu)$.
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+rutkowskiDelta = function(path,H,G,lambda,mu,r) {
+  nPathValues = length(path)
+  psi         = path[-1]/path[-nPathValues]
+  factorV     = vector(mode='numeric',length=length(G) - 1)
+  for (i in 1:length(factorV)){
+    if (G[i+1]/path[i+1] > G[i]/path[i]) {factorV[i]=1+lambda
+    } else {factorV[i]=1-mu}
+  }
+  HD = H[-length(H)]*(1+r) - H[-1]
+  GD = G[-length(G)]*psi - G[-1]
+  delta = HD + factorV*GD
+  return(delta)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+# Required inputs
+
+> pathMatrix
+         path-1    path-2    path-3
+time-0 100.0000 100.00000 100.00000
+time-1 108.2806  98.45422 108.56854
+time-2 119.1448  92.13994  80.65581
+> path = pathMatrix[,1]
+> path
+  time-0   time-1   time-2
+100.0000 108.2806 119.1448
+> psi
+  time-1   time-2
+1.082806 1.100334
+> lambda
+   0.2
+> mu
+0.1666667
+> u
+1.15191
+> d
+0.8681234
+> K
+100
+
+oList = collectGHRutkowski(path,lambda,mu,r,u,d,K)
+G     = oList$hgInitial[,'G']
+H     = oList$hgInitial[,'H']
+
+# Results
+
+> G
+   time-0    time-1    time-2
+ 65.02261  75.39653 119.14482
+> H
+    time-0     time-1     time-2
+ -47.03971  -54.54458 -100.00000
+
+> factorV
+[1] 1.2 1.2
+> psi
+  time-1   time-2
+1.082806 1.100334
+> HD
+   time-0    time-1
+ 7.504873 45.455419
+> GD
+    time-0     time-1
+ -4.989644 -36.183477
+> delta
+  time-0   time-1
+1.517299 2.035247
+\end{verbatim}
+
+\subsubsection*{Rutkowski portfolio}
+
+For each stock price on a stock price path, the Rutkowski option tree is folded back
+to that stock price node and the portfolio (G,H) as well as the option price is stored.
+The computation of the portfolio is done by the HG() function.
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+collectGHRutkowski = function(path,lambda,mu,r,u,d,K) {
+  nFlips           = length(path) - 1
+  hgInitial        = matrix(0,nrow=nFlips+1,ncol=2)
+  colnames(hgInitial) = c('H','G')
+  rownames(hgInitial) = paste('time',0:nFlips,sep='-')
+  optionPriceValue = rep(NA,nFlips+1)
+  outputList       = list()
+  nFlipsList       = seq(nFlips,1)
+  p                = prob(lambda,mu,r,u,d)
+  phat   = p['phat']
+  ptilda = p['ptilda']
+  #
+  for (i in 1:nFlips) {
+    s  = path[i]
+    nF = nFlipsList[i]
+    stockList = stock(s,u,d,nF)
+    fStored   = computeF1F2(stockList,s,u,d,nF,K,lambda,mu,phat,ptilda,r)
+    price     = unname(optionPriceRut(phat,r,fStored))
+    hg        = HG(mu,lambda,fStored)
+    hgInitial[i,]        = rev(hg)[[1]]
+    optionPriceValue[i]  = price
+    output    = list(s=s,nF=nF,hg=hg,price=price,
+                     fStored=fStored,p=p,stockList=stockList)
+    outputList[[i]]      = output
+  }
+  # Calculate and save expiration time G,H, which are the
+  # option payoffs at expiration.
+  # Compute option payoff at expiration as max(s-K,0).
+  #
+  # Return value of callPayoffGH is a one row matrix.
+  # callPayoffGH was modified to accept a vector of stock prices,
+  # and it returns a matrix of g,h values.
+  # Access its values by GHTerminal[,'g'] and GHTerminal[,'h'].
+  pathTerminalValue = path[length(path)]
+  GHTerminal = callPayoffGH(pathTerminalValue,K)
+  gValue = GHTerminal[,'g']
+  hValue = GHTerminal[,'h']
+  gValue = unname(gValue)
+  hValue = unname(hValue)
+  hgInitial[nFlips+1,]       = c(hValue,gValue)
+  optionPriceValue[nFlips+1] = max(pathTerminalValue - K,0)
+  invisible(list(hgInitial=hgInitial,
+                 optionPriceValue=optionPriceValue,
+                 outputList=outputList))
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+# Required inputs
+
+> path
+  time-0   time-1   time-2
+100.0000 108.2806 119.1448
+> lambda
+   0.2
+> mu
+0.1666667
+> r
+0
+> u
+1.15191
+> d
+0.8681234
+> K
+100
+
+# Results
+
+> p
+     phat    ptilda
+0.7233205 0.1668000
+> i=1
+> s
+time-0
+   100
+> nF
+[1] 2
+> fStored
+$`time=2`
+           f1      f2
+[1,] 59.22757 10.5747
+[2,]  0.00000  0.0000
+[3,]  0.00000  0.0000
+
+$`time=1`
+           f1       f2
+[1,] 42.84051 9.879159
+[2,]  0.00000 0.000000
+
+$`time=0`
+           f1       f2
+[1,] 30.98742 7.145798
+
+> price
+[1] 30.98742
+> hg
+$`time=2`
+        H        G
+[1,] -100 132.6896
+[2,]    0   0.0000
+[3,]    0   0.0000
+
+$`time=1`
+             H        G
+[1,] -65.03301 89.89461
+[2,]   0.00000  0.00000
+
+$`time=0`
+           H        G
+[1,] -47.03971 65.02261
+
+# Expiration time values
+
+> pathTerminalValue
+  time-2
+119.1448
+> GHTerminal
+              g    h
+time-2 119.1448 -100
+> gValue
+[1] 119.1448
+> hValue
+[1] -100
+> hgInitial
+                H         G
+time-0  -47.03971  65.02261
+time-1  -54.54458  75.39653
+time-2 -100.00000 119.14482
+> optionPriceValue
+[1] 30.98742 35.93126 19.14482
+\end{verbatim}
+
+Given the tree of $f_1,f_2$ values, the portfolio $(H,G)$ is given by
+\begin{align*}
+    H &= \frac{1}{\lambda+\mu}\left((1+\lambda) f_2 - (1-\mu) f_1\right)\\
+    G &= \frac{1}{\lambda+\mu}\left(f_1 - f_2\right)
+\end{align*}
+
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+HG = function(mu,lambda,fStored) {
+  hgStored = list()
+  nTimePeriods = length(fStored)
+  coeff = 1/(mu + lambda)
+  for (time in 1:nTimePeriods) {
+    #f1, f2 stored in reverse time order: expiration is first element
+    f1 = unname(fStored[[time]][,'f1'])
+    f2 = unname(fStored[[time]][,'f2'])
+    H = coeff*((1+lambda)*f2 - (1 - mu)*f1)
+    G = coeff*(f1 - f2)
+    hgStored[[time]] = cbind(H=H,G=G)
+  }
+  names(hgStored) = rev(timeNames(nTimePeriods))
+  return(hgStored)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> fStored
+$`time=1`
+           f1       f2
+[1,] 49.67543 3.941274
+[2,]  0.00000 0.000000
+
+$`time=0`
+           f1       f2
+[1,] 35.93126 8.285862
+
+> coeff
+      mu
+2.727273
+> hgStored
+$`time=1`
+        H        G
+[1,] -100 124.7295
+[2,]    0   0.0000
+
+$`time=0`
+             H        G
+[1,] -54.54458 75.39653
+\end{verbatim}
+
+
+
+\subsubsection*{Rutkowski cost}
+
+The cost computation is done by the createTCosts() function.
+
+\begin{verbatim}
+File: rutkowski-2.R
+
+# All costs will be positive.
+# createTCosts() is in residualCRR.R
+# GMatrix from createDeltaRutkowski()
+
+tCostRutkowski = function(pathMatrix,GMatrix,lambda,mu){
+  nTime = nrow(pathMatrix)
+  nPath = ncol(pathMatrix)
+  rutCosts = matrix(NA,nrow=nTime,ncol=nPath)
+  for (kpath in 1:nPath) {
+    path = pathMatrix[,kpath]
+    G    = GMatrix[,kpath]
+    shareQt = G/path
+    rutCosts[,kpath] = createTCosts(path,shareQt,lambda,mu)
+  }   # end ipath loop
+  invisible(rutCosts)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> kpath=1
+> path = pathMatrix[,kpath]
+> G    = GMatrix[,kpath]
+> shareQt = G/path
+> rutCosts[,kpath] = createTCosts(path,shareQt,lambda,mu)
+> path
+  time-0   time-1   time-2
+100.0000 108.2806 119.1448
+> G
+  time-0   time-1   time-2
+65.02261 75.39653  0.00000
+> shareQt
+   time-0    time-1    time-2
+0.6502261 0.6963068 0.0000000
+> rutCosts[,1]
+[1] 13.0045216  0.9979288 13.8268902
+\end{verbatim}
+
+Note that the createTCosts() function is used both for CRR model and the Rutkowski model.
+
+\begin{verbatim}
+File: residualsCRR.R
+
+createTCosts = function(sPath,portShareQt,lambda,mu,verbose=FALSE){
+  # Prepend 0 to share quantity, to compute setup transaction cost
+  portShareQtWithZero = c(0,portShareQt)
+  changeShareQt       = diff(portShareQtWithZero)
+  factor = lambda * (changeShareQt > 0) - mu * (changeShareQt <= 0)
+  tCost  = changeShareQt * sPath * factor
+  # Prepare data for printing
+  if (verbose) {
+    output = cbind(sPath,portShareQt,factor,tCost)
+    print(round(output,digits=4),digits=4)
+                }
+  invisible(tCost)
+}
+\end{verbatim}
+
+\subsubsection*{Example}
+
+\begin{verbatim}
+> portShareQtWithZero
+             time-0    time-1    time-2
+0.0000000 0.6502261 0.6963068 0.0000000
+> changeShareQt
+     time-0      time-1      time-2
+ 0.65022608  0.04608067 -0.69630675
+> factor
+    time-0     time-1     time-2
+ 0.2000000  0.2000000 -0.1666667
+> tCost
+    time-0     time-1     time-2
+13.0045216  0.9979288 13.8268902
+\end{verbatim}
+
+\subsection*{Processing Results}
+The code to evaluate the resulting portfolios, deltas and costs is being written.
+ The results of running a simulation
+is saved in a single data file \verb!run#.Rdata!, where \verb!#! is the run number.
+The code in rutkowskiSimulation() is:
+
+\begin{verbatim}
+# Add five additional constants to the constants data vector.
+  constants['priceBaseRut'] = priceBaseRut
+  constants['priceBaseCRR'] = priceBaseCRR
+  constants['uBase']        = udBase['u']
+  constants['dBase']        = udBase['d']
+  constants['h']            = h
+  ##
+  ## Dump data in current directory
+  dataNames = c('constants','pathMatrix','udMatrixCRR','udMatrixRut',
+               'udMatrix1','udMatrix2','portBigCRR','portBigRut',
+               'deltaBigCRR','deltaBigRut','costBigCRR','costBigRut',
+                'rowsToUseCRR','rowsToUseRut')
+  save(list=dataNames,file=paste('run',runNumber,'.Rdata',sep=''))
+\end{verbatim}
+
+The function processData() reads the single data file, unpacks the data
+and performs the typical aggregation (sum over time), statistic (average
+over stock price paths), and optimization (maximum net delta inclusive of
+transaction costs).
+
+\begin{verbatim}
+File: processData.R
+
+processData = function(runNumber) {
+  fileName = paste('run',runNumber,'.Rdata',sep='')
+  load(fileName)
+  # Process Rutkowski data
+  dimC     = dim(costBigRut)
+  nTime    = dimC[1]
+  npaths   = dimC[2]
+  nUDPairs = dimC[3]
+  avgCostRut  = vector(mode='numeric',length=nUDPairs)
+  avgDeltaRut = vector(mode='numeric',length=nUDPairs)
+  for (i in 1:nUDPairs) {
+    avgCostRut[i]  = mean(apply(costBigRut[,,i],2,sum))
+    avgDeltaRut[i] = mean(apply(deltaBigRut[,,i],2,sum))
+                          }  # end nUDPairs loop
+  #
+  # Process CRR data
+  dimC     = dim(costBigCRR)
+  nTime    = dimC[1]
+  npaths   = dimC[2]
+  nUDPairs = dimC[3]
+  avgCostCRR  = vector(mode='numeric',length=nUDPairs)
+  avgDeltaCRR = vector(mode='numeric',length=nUDPairs)
+  for (i in 1:nUDPairs) {
+    avgCostCRR[i]  = mean(apply(costBigCRR[,,i],2,sum))
+    avgDeltaCRR[i] = mean(apply(deltaBigCRR[,,i],2,sum))
+  }   # end nUDPairs loop
+  # Process CRR data
+  netDeltaCRR            = avgDeltaCRR - avgCostCRR
+  maxNetDeltaLocationCRR = which.max(netDeltaCRR)
+  maxNetDeltaCRR         = netDeltaCRR[maxNetDeltaLocationCRR]
+  udOptimalCRR           = udMatrixCRR[maxNetDeltaLocationCRR,]
+  # Process Rutkowski data
+  netDeltaRut            = avgDeltaRut
+  maxNetDeltaLocationRut = which.max(netDeltaRut)
+  maxNetDeltaRut         = netDeltaRut[maxNetDeltaLocationRut]
+  udOptimalRut           = udMatrixRut[maxNetDeltaLocationRut,]
+  cat('\n\n Run number',runNumber)
+  cat('\n constants\n',constants)
+  cat('\n\n CRR Results\n')
+  cat('Optimal net average delta:'
+      ,round(maxNetDeltaCRR,digits=3),
+      'at location'
+      ,maxNetDeltaLocationCRR,
+      '\nOptimal u,d pair:',
+      round(udOptimalCRR,digits=3),'\n\n')
+  cat(' Rut Results\n')
+  cat('Optimal net average delta:',
+      round(maxNetDeltaRut,digits=3),
+      'at location',
+      maxNetDeltaLocationRut,
+      '\nOptimal u,d pair:',
+      round(udOptimalRut,digits=3),'\n\n')
+}   # end function processData
+\end{verbatim}
+ \subsubsection*{Example}
+
+\begin{verbatim}
+> load('run5.Rdata')
+> nTime
+[1] 3
+> npaths
+[1] 3
+> nUDPairs
+[1] 5
+
+# Results for one u,d pair.
+
+> iUDPair = 1
+> costBigRut[,,1]
+          path-1   path-2   path-3
+time-0  8.791077 8.791077 8.791077
+time-1  1.374161 1.219868 1.457314
+time-2 11.842816 5.608445 6.810964
+> costBigCRR[,,1]
+          path-1   path-2   path-3
+time-0  5.786987 5.786987 5.786987
+time-1  3.050003 2.833566 3.238997
+time-2 13.578047 1.791601 5.894833
+> deltaBigCRR[,,1]
+          path-1   path-2     path-3
+time-1 -1.909579 3.810152 -2.0771679
+time-2 -3.105570 2.065953 -0.6237185
+> deltaBigRut[,,1]
+          path-1   path-2    path-3
+time-1 -2.032408 1.371521 -2.210776
+time-2 -3.250426 6.789065  1.540733
+> totalCost = apply(costBigRut[,,iUDPair],2,sum)
+> totalCost
+  path-1   path-2   path-3
+22.00805 15.61939 17.05936
+> avgCostRut  = mean(apply(costBigRut[,,iUDPair],2,sum))
+> avgCostRut
+[1] 18.22893
+
+# Results for all 5 u,d pairs.
+
+> avgDeltaCRR
+[1] -0.6133104 -1.7382309 -3.0505788 -2.4307251 -2.2620597
+> avgCostCRR
+[1] 15.91600 21.64577 26.95441 28.66003 29.04700
+> netDeltaCRR
+[1] -16.52931 -23.38400 -30.00499 -31.09075 -31.30906
+> avgDeltaRut
+[1]  0.7359031 10.7243633 13.4342474 14.4077173 14.9804534
+> avgCostRut
+[1] 18.22893 22.95658 23.83904 24.61756 25.70806
+> netDeltaRut
+[1] -17.49303 -12.23222 -10.40479 -10.20984 -10.72761
+> maxNetDeltaLocationCRR
+[1] 1
+> maxNetDeltaCRR
+[1] -31.30906
+> udOptimalCRR
+       u        d
+1.050000 0.756003
+> maxNetDeltaLocationRut
+[1] 1
+> maxNetDeltaRut
+[1] -10.72761
+> udOptimalRut
+        u         d
+1.0500000 0.7092913
+\end{verbatim}
+
+\subsection*{Miscellaneous functions}
+
+The plotContour and plotSurface functions are in file sigma1Contour.R.
+
+\begin{verbatim}
+File: sigma1Contour.R
+
+# cL returned by getContour()
+plotContour = function(cL,mainTitle=NULL) {
+  plot(cL[,2],cL[,1],type='l',xlab='d',ylab='u',main=mainTitle)
+}
+
+# dL returned by cSurface()
+plotSurface1 = function(dL,mainTitle=NULL) {
+  persp(dL$u,dL$d,dL$c,
+        xlab="u",ylab="d",zlab="c",
+        shade = 0.75, border = TRUE,scale=TRUE,axes=TRUE,
+        ticktyp="detailed",nticks=2,main=mainTitle)
+  return(NULL)
+}
+
+plotSurface = function(dL,mainTitle=NULL) {
+  wireframe(dL$c,row.values=dL$u,column.values=dL$d,
+            scales=list(arrows=FALSE),main=mainTitle,
+            xlab='u',ylab='d',zlab='c',
+            drape=TRUE,colorkey=TRUE)
+
+}
+\end{verbatim}
+
+The functions that graph option price $c$ vs. $u$ are in the
+file cVsULatticePlot.R, which are slightly modified versions
+of the functions we used in prior projects.
+
+The function printResults()  prints all of the
+results of a simulation, while printConstants() prints the constants vector.
+
+\begin{verbatim}
+File: rutkowskiSimulation.R
+
+# Removed udMatrix1,udMatrix2 from printing list
+printResults = function(runNumber) {
+  fileName = paste('run',runNumber,'.Rdata',sep='')
+  load(fileName)
+#  printConstants(constants)
+  cat('\n')
+  dataNames =  c("constants","pathMatrix",
+                 "udMatrixCRR","udMatrixRut",
+                 'rowsToUseCRR','rowsToUseRut',
+                 "costBigCRR","costBigRut",
+                 "deltaBigCRR","deltaBigRut",
+                 "portBigCRR","portBigRut")
+  for (i in 1:length(dataNames)) {
+    cat('\n\n\t',dataNames[i],'\n\n')
+    print(round(eval(as.symbol(dataNames[i])),digits=3))
+  }
+}
+
+printConstants = function(constants,nDigits=3) {
+  constants = round(constants,digits=nDigits)
+  mc = matrix(constants,ncol=1,dimnames=list(names(constants),'constants'))
+  print(mc)
+}
+\end{verbatim}
+
+
+\subsection*{rutkowskiSimulation() function}
+
+The driver for the simulation is the function rutkowskiSimulation().
+
+The function rutkowskiSetup() sources the files needed for the simulation.
+
+The function rutkowskiConstants creates the constants vector.
+
+\begin{verbatim}
+File: rutkowskiSimulation.R
+
+rutkowskiSetup = function() {
+  require(lattice)
+  #
+  source('rutkowski-2.R')
+  source('rutkowskiCreateGBMPaths.R')
+  source('rutkowskiOptionPriceAndSigma2.R')
+  source('sigma1Contour.R')
+  source('crr-1.R')
+  source('residualsCRR.R')
+  source('processData.R')
+  #
+  cat("\n\n Sourced the following files\n")
+  cat('rutkowski-2.R\n','rutkowskiCreateGBMPaths.R\n','rutkowskiOptionPriceAndSigma2.R\n')
+  cat('residualsCRR.R\n','sigma1contour.R\n','processData.R\n', '\n\n')
+}
+
+rutkowskiConstants = function() {
+  seed   = 12345        # seed set in rutkowskiSimulation()
+  nPaths = 3            # number of paths constructed
+  TimeToExpiration = 1  # time to expiration in years
+  sigma  = 0.20         # annual stock volatility
+  drift  = 0.00         # annual stock drift
+  S0     = 100          # initial stock price at time t=0
+  K      = S0           # at-the-money option strike price
+  R      = K/S0         # normalized strike - used in CRR contour computation
+  # u computed from sigma and h
+  #  by function computeBaseUD() in
+  #  file rutkowskiOptionPriceAndSigma2.R .
+  #  d is computed as 1/u in the same function.
+  lambda = 0.20         # unit transaction cost for buying a share of stock.
+  mu     = 1/6          # unit transaction cost for selling a share of stock.
+  nFlips = 2            # number of rebalancing times.
+  r      = 0            # risk-free interest rate
+  rho    = 1 + r        # risk-free accumulation factor
+  uStart = 1.05         # u range (uStart,uEnd) for computing (u,d) contour.
+  uEnd   = 1.98
+  dStart = 0.70         # d range (dStart,dEnd) for computing (u,d) contour.
+  dEnd   = 0.98
+  nPtsD  = 100          # number of u values used in computing (u,d,c) surface.
+  nPtsU  = 100          # number of d values used in computing (u,d,c) surface.
+  nUDPairsToUse = 5     # number of contour (u,d) pairs to use in algorithm.
+  #
+  constants = c(nPaths=nPaths,TimeToExpiration=TimeToExpiration,
+                sigma=sigma,drift=drift,S0=S0,K=K,R=R,seed=seed,
+                lambda=lambda,mu=mu,nFlips=nFlips,r=r,rho=rho,
+                #                oType=oType,
+                uStart=uStart,uEnd=uEnd,dStart=dStart,dEnd=dEnd,
+                nPtsD=nPtsD,nPtsU=nPtsU,nUDPairsToUse=nUDPairsToUse)
+  return(constants)
+}
+
+rutkowskiSimulation = function(verbose=FALSE) {
+  ## Create simulation constants ###############
+  ##
+  constants = rutkowskiConstants()
+  runNumber = constants['runNumber']
+  oType     = 'call'
+  nPaths    = constants['nPaths']
+  nFlips    = constants['nFlips']
+  TimeToExpiration = constants['TimeToExpiration']
+  sigma     = constants['sigma']
+  drift     = constants['drift']
+  S0        = constants['S0']
+  lambda    = constants['lambda']
+  mu        = constants['mu']
+  uStart    = constants['uStart']
+  uEnd      = constants['uEnd']
+  dStart    = constants['dStart']
+  dEnd      = constants['dEnd']
+  nPtsU     = constants['nPtsU']
+  nPtsD     = constants['nPtsD']
+  r         = constants['r']
+  rho       = constants['rho']
+  K         = constants['K']
+  R         = constants['R']
+  scaleBy   = 100
+  nUDPairsToUse = constants['nUDPairsToUse']
+  seed      = constants['seed']
+  set.seed(seed)
+  ##
+  ## Create GBM paths - see rutkowskiCreateGBMPaths.R
+  ## supplied paths if pathMatrix argument is not NULL,
+  ## otherwise construct GBM paths.
+  ##
+  print(round(constants,digits=3))
+  pathMatrix = createGBMPaths(nPaths,TimeToExpiration,nFlips,sigma,drift,S0)
+  #
+  if (verbose) {
+    cat("\n\n Path matrix\n")
+    print(pathMatrix)
+    cat("\n")
+    matplot(1:nrow(pathMatrix),pathMatrix,type='l',
+            xlab='Time',ylab='Stock Price', main='Sample Paths')
+  }  # end if verbose
+  ##
+  ## Create Rutkowski market contour udMatrix2
+  #  - see rutkowskiOptionPriceAndSigma2.R
+  ##
+  h      = TimeToExpiration/nFlips
+  udBase = computeBaseUD(sigma,h)
+  u      = udBase['u']
+  d      = udBase['d']
+  priceBaseRut   = computeBasePrice(u,d,lambda,mu,r,S0,K,nFlips)
+  dLRutkowski    = computeGridPrice(uStart,uEnd,dStart,dEnd,nPtsU,nPtsD,
+                                 lambda,mu,r,S0,K,nFlips)
+  udMatrix2   = getContourRutkowski(dLRutkowski,priceBaseRut)
+  #
+  if (verbose) {
+    cat('\n Rutkowski base price',priceBaseRut,'\n')
+    cat('\n Rutkowski contour plotted from',nrow(udMatrix2),'(u,d) pairs\n')
+    optionPriceRounded = round(priceBaseRut,digits=3)
+    mainT1 = paste('Rutkowski contour for option price', optionPriceRounded)
+    mainT2 = paste('Rutkowski surface plot')
+    plotContour(udMatrix2,
+                mainTitle=mainT1)
+    cat('\n Rutkowski option price surface plotted')
+    plotSurface(dLRutkowski,mainTitle=mainT2)
+    }
+  ##
+  ## Create CRR market contour udMatrix1 - see sigma1Contour.R
+  ##
+  dLCRR     = cSurface(nFlips,R,rho,nPtsU,nPtsD,uStart,uEnd,dStart,dEnd,oType)
+  oTree     = optionTree(S0,K,u,d,r,nFlips)
+  priceBaseCRR = unname(rev(oTree)[[1]])
+  udMatrix1 = getContourCRR(dL=dLCRR,S0=S0,optionPrice=priceBaseCRR,scaleBy=scaleBy)
+  #
+  if (verbose) {
+    cat('\n CRR base price',priceBaseCRR,'\n')
+    cat('\n CRR contour plotted from',nrow(udMatrix1),'(u,d) pairs\n')
+    optionPriceRounded = round(priceBaseCRR,digits=3)
+    mainT1 = paste('CRR contour for option price', optionPriceRounded)
+    mainT2 = paste('CRR surface plot')
+    plotContour(udMatrix1,
+                mainTitle=mainT1)
+    cat('\n CRR option price surface plotted')
+    plotSurface(dLCRR,mainTitle=mainT2)
+  }
+  ##
+  ## CRR:
+  ## Calculate delta and tCost for each (u,d) in udMatrix1
+  ## and each path in pathMatrix.
+  ## - see residualsCRR.R
+  ##
+  # Choose nUDPairsToUse number of (u,d) pairs from udMatrix1
+  # As set above, nUDPairsToUse=10
+  nUDPairsCRR    = nrow(udMatrix1)
+  rowsToUseCRR   = unique(round(seq(1,nUDPairsCRR,length=nUDPairsToUse)))
+  nUDPairsToUseCRR = length(rowsToUseCRR)
+  stopifnot(length(rowsToUseCRR) > 0)
+  udMatrixCRR    = udMatrix1[rowsToUseCRR,,drop=FALSE]
+  colnames(udMatrixCRR) = c('u','d')
+  if (verbose) {
+    cat('\n\n Chosen (u,d) pairs for CRR\n')
+    print(udMatrixCRR)
+    cat("\n\n")
+  }    # end verbose
+  uValues     = round(udMatrixCRR[,1],digits=4)
+  dValues     = round(udMatrixCRR[,2],digits=4)
+  # array names
+  rowNamesDelta = paste('time-',1:nFlips,sep='')
+  colNamesDelta = paste('path-',1:nPaths,sep='')
+  lstNamesDelta = paste('u-',uValues,' d-',dValues,sep='')
+  rowNamesPort  = paste('time-',0:nFlips,sep='')
+  colNamesPort  = c('stock #','bond $')
+  thirdDimPort  = colNamesDelta
+  forthDimPort  = lstNamesDelta
+  rowNamesCost  = rowNamesPort
+  colNamesCost  = colNamesDelta
+  lstNamesCost  = lstNamesDelta
+  dimNamesDelta = list(rowNamesDelta,colNamesDelta,lstNamesDelta)
+  dimNamesPort  = list(rowNamesPort,colNamesPort,thirdDimPort,forthDimPort)
+  dimNamesCost  = list(rowNamesCost,colNamesCost,lstNamesCost)
+  #
+  portBigCRR  = array(data=NA,dim=c(nFlips+1,2,nPaths,nUDPairsToUseCRR),
+                      dimnames=dimNamesPort)
+  costBigCRR  = array(data=NA,dim=c(nFlips+1,nPaths,nUDPairsToUseCRR),
+                      dimnames=dimNamesCost)
+  deltaBigCRR = array(data=NA,dim=c(nFlips,nPaths,nUDPairsToUseCRR),
+                      dimnames=dimNamesDelta)
+  #
+  for (iUDPair in 1:nUDPairsToUseCRR) {  # loop over ud pairs
+    ud = udMatrixCRR[iUDPair,]
+    u = ud[1]
+    d = ud[2]
+    for (iPath in 1:nPaths) {    # loop over paths
+      path         = pathMatrix[,iPath]
+      pathLength   = length(path)
+      pathDropLast = path[-pathLength]
+      psi          = path[-1]/pathDropLast
+      gi           = createGi(path,K,u,d,r)
+      portfolio    = createPortfolioCRR(gi,path,u,d,r,K)
+      delta        = createDelta(gi,u,d,psi)
+      tCost        = createTCosts(path,portfolio[,1],lambda,mu)
+      deltaBigCRR[,iPath,iUDPair] = unname(delta)
+      costBigCRR[,iPath,iUDPair]  = unname(tCost)
+      portBigCRR[,,iPath,iUDPair] = portfolio
+    }     # end loop over iPath
+  }       # end loop over iUDPair
+  if (verbose) {
+    cat("\n CRR delta values\n")
+    print(round(deltaBigCRR,digits=4))
+    cat('\n\n CRR cost values\n')
+    print(round(costBigCRR,digits=4))
+    cat("\n\n CRR portfolio\n")
+    print(round(portBigCRR,digits=4))
+  }   # end verbose
+  ##
+  ##   Rutkowski:
+  ## Calculate delta and tCost for each (u,d) in udMatrix2
+  ## and each path in pathMatrix.
+  # Choose nUDPairsToUse number of (u,d) pairs from udMatrix2
+  # As set above, nUDPairsToUse=10
+  nUDPairsRut      = nrow(udMatrix2)
+  rowsToUseRut     = unique(round(seq(1,nUDPairsRut,length=nUDPairsToUse)))
+  nUDPairsToUseRut = length(rowsToUseRut)
+  stopifnot(length(rowsToUseRut) > 0)
+  udMatrixRut      = udMatrix2[rowsToUseRut,,drop=FALSE]
+  colnames(udMatrixRut) = c('u','d')
+  if (verbose) {
+    cat('\n\n Chosen (u,d) pairs for Rutkowski\n')
+    print(udMatrixRut)
+    cat("\n\n")
+  }    # end verbose
+  ##
+  ## loop over (u,d) pairs
+  ##
+  rowN = paste('time-',0:nFlips,sep='')
+  colN = paste('path-',1:nPaths,sep='')
+  uvector  = round(udMatrixRut[,1],digits=3)
+  dvector  = round(udMatrixRut[,2],digits=3)
+  thdN     = paste('u:',uvector,' d:',dvector,sep='')
+  dimN     = list(rowN,colN,thdN)
+  dimV     = c(nFlips+1,nPaths,nUDPairsToUseRut)
+  dimD     = c(nFlips,nPaths,nUDPairsToUseRut)
+  dimD1    = c(nFlips+1,2,nPaths,nUDPairsToUseRut)
+  colN1    = c('stock $','bond $')
+  rowN1    = paste('time-',1:nFlips,sep='')
+  dimN1    = list(rowN1,colN,thdN)
+  dimN2    = list(rowN,colN1,colN,thdN)
+  costBigRut  = array(data=NA,dim=dimV,dimnames=dimN)
+  deltaBigRut = array(data=NA,dim=dimD,dimnames=dimN1)
+  portBigRut  = array(data=NA,dim=dimD1,dimnames=dimN2)
+  for (iUDPair in 1:nUDPairsToUseRut) {  # loop over ud pairs
+    ud = udMatrixRut[iUDPair,]
+    u = ud[1]
+    d = ud[2]
+    rutOut   = createDeltaRutkowski(pathMatrix,lambda,mu,r,u,d,K,verbose)
+    deltaRut = rutOut$delta
+    deltaBigRut[,,iUDPair] = deltaRut
+    GMatrix  = rutOut$GMatrix
+    HMatrix  = rutOut$HMatrix
+    #
+    for (iPath in 1:nPaths) {
+      path     = pathMatrix[,iPath]
+      G        = GMatrix[,iPath]
+      shareQt  = G/path
+      costRut  = createTCosts(path,shareQt,lambda,mu)
+      costBigRut[,iPath,iUDPair]   = costRut
+      portBigRut[,1,iPath,iUDPair] = GMatrix[,iPath]
+      portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
+                            }  # end iPath loop
+                        }  #end iUDPair loop
+  if (verbose) {
+    cat('\n\n Rutkowski delta\n')
+    print(round(deltaBigRut,digits=3),digits=3)
+    cat('\n\n Rutkowski tCost\n')
+    print(round(costBigRut,digits=3),digits=3)
+    cat('\n\n Rutkowski portfolio\n')
+    print(round(portBigRut,digits=3),digits=3)
+  }   #end verbose
+  #####
+  ## Collect data to save
+  constants['priceBaseRut'] = priceBaseRut
+  constants['priceBaseCRR'] = priceBaseCRR
+  constants['uBase']        = udBase['u']
+  constants['dBase']        = udBase['d']
+  constants['h']            = h
+  constants['nUDPairsToUseCRR'] = nUDPairsToUseCRR
+  constants['nUDPairsToUseRut'] = nUDPairsToUseRut
+  ##
+  ## Dump data in current directory
+  saveFileName = paste('run',runNumber,'.Rdata',sep='')
+  dataNames = c('constants','pathMatrix','udMatrixCRR','udMatrixRut',
+               'udMatrix1','udMatrix2','portBigCRR','portBigRut',
+               'deltaBigCRR','deltaBigRut','costBigCRR','costBigRut',
+                'rowsToUseCRR','rowsToUseRut')
+
+  save(list=dataNames,file=saveFileName)
+  cat('\n\n Saving data in file ',saveFileName,' for run ',runNumber,'\n\n')
+#
+#
+}  # end function rutkowskiSimulation()
+\end{verbatim}
+
+\end{document} 
