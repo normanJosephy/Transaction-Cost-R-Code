@@ -24,12 +24,17 @@ require('testthat')
 # The contour is solving g - x0 = 0, i.e. g = x0,
 # where x0 is initial option price.
 
+# 5/23/2014 
+# Added x0 input parameter to drawContour. 
+# The drawContour now uses g - x0 as data for contours,
+# and uses contour value = 0 for market contour.
+
 
 g = function(x,
              r=0.01,
              s0=100,
              K=100,
-             n=100
+             n=4
              ) {
   u = x[1]
   d = x[2]
@@ -68,17 +73,21 @@ myMulti = function(x0,...) {
   points(ans[,1],ans[,2],cex=1.2,pch=19)
 }
 
-drawContour = function(n=10,
-                 u = seq(1.02,1.2,length=n),
-                 d = seq(0.5,0.9,length=n)) {
+# Market contour cL si solution (u,d) values when g = x0.
+# testmatrix is g values.
+drawContour = function(
+                 n=12,
+                 x0 = 10,
+                 u  = seq(1.03,1.2,length=n),
+                 d  = seq(0.7,0.95,length=n)) {
   testmatrix = matrix(NA,n,n)
   for (i in 1:n) {
     for (j in 1:n) {
       testmatrix[i,j] = g(c(u[i],d[j]))
     }
   }
-  contour(x=u,y=d,z=testmatrix)
-  cL = contourLines(x=u,y=d,z=testmatrix,levels=0)
+  contour(x=u,y=d,z=testmatrix - x0)
+  cL = contourLines(x=u,y=d,z=testmatrix - x0,levels=0)
   invisible(list(u=u,d=d,testmatrix=testmatrix,cL=cL))
 }
 

@@ -15,9 +15,13 @@
 # 11/09/2013 Switched to using Friday stock prices for IMB1
 # and end of month stock prices for IBM2
 
-# Sourcing createPathsFromIBMPricesUpdated2013.R 
+# 5/22/2014 Changed dataDir to Transaction-Cost-R-Code under git
+#           Changed run number to 999.
+#           Added '~/data/' to path to data created by code.
+#           Added subdirectory 'data' to store data created.
+
 setupUseIBM = function() {
-  dataDir = 'c:/Research/Lucy-Oct-Nov2013RComputationsFor LatestVersionOfPaper/'
+  dataDir = "C:/research/Lucy-2014/Transaction-Cost-R-Code"
   setwd(dataDir)
   #
   source('rutkowskiCreateGBMPaths.R')
@@ -54,19 +58,19 @@ setupUseIBM = function() {
 #  for createDeltaRutkowski()
 
 ibmConstantsCRRUsed = function() {
-  runNumber = 603
+  runNumber = 999
   # Option data
   nDaysInYear = 252
   S0          = 179.99       # stock price at time option price is noted.
   K           = 180          # call option strike price
-  optionPrice = 5.04        # option price
+  optionPrice = 5.04         # option price
   nFlips      = 8            # number of rebalancing times.
   TimeToExpiration = 1/6     # time to expiration in years
   R           = K/S0         # normalized strike - used in CRR contour computation
   #
   nPaths = 100        # number of paths constructed  
   lambda = 0.01       # unit transaction cost for buying a share of stock.
-  mu     = 0.01      # unit transaction cost for selling a share of stock. 
+  mu     = 0.01       # unit transaction cost for selling a share of stock. 
   nUDPairsToUse = 50     # number of contour (u,d) pairs to use in algorithm.
   #  
   rAnnual = 0.00
@@ -85,8 +89,9 @@ ibmConstantsCRRUsed = function() {
                  rAnnual=rAnnual,runNumber=runNumber,
                  nPtsD=nPtsD,nPtsU=nPtsU,nUDPairsToUse=nUDPairsToUse)
   fileName = paste('run',runNumber,'constants.Rdata',sep='')
-  save(constants,file=fileName)
-  cat("\n constants saved to file",fileName,'\n\n')
+  fullFileName = paste('~/data/',fileName,sep='')
+  save(constants,file=fullFileName)
+  cat("\n constants saved to file",fullFileName,'\n\n')
   return(constants)
 }
 

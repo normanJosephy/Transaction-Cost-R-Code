@@ -25,6 +25,10 @@
 #           deleted, causing G,H to always be zero at expiration,
 #           which is incorrect when option expires in the money.
 
+# 5/23/2014
+# Added another test : two coin flips, u=1.2,d=0.8,lambda=mu=0.1
+# Results were verified by pencil/paper computation
+
 driverRutkowski = function(S0 = 193.15,nFlips = 44,mySeed=12345) {
 #   lambda = 0.2
 #   mu     = 1/6
@@ -313,13 +317,13 @@ collectGHRutkowski = function(path,lambda=0.2,mu=1/6,r=0,u=1.3,d=0.9,K=100) {
                  outputList=outputList))
 }
 
-testCollectGHRutkowski = function(path=c(100,140,105)) {  
-  lambda = 0.2
-  mu     = 1/6
-  r = 0.0
-  u = 1.3
-  d = 0.9
-  K=100
+testCollectGHRutkowski = function(path=c(100,140,105),
+                                  lambda=0.2,
+                                  mu=1/6,
+                                  r=0.0,
+                                  u=1.3,
+                                  d=0.9,
+                                  K=100) {  
   doubleList = collectGHRutkowski(path=path,lambda=lambda,mu=mu,r=r,u=u,d=d,K=K)
   hgInitial        = doubleList$hgInitial
   optionPriceValue = doubleList$optionPriceValue
@@ -365,3 +369,18 @@ testTestCollectGHRutkowski = function() {
   }
 }  
  
+anotherTestTestCollectGHRutkowski = function() {
+  path1 = c(100,120,80)
+#  path2 = c(100.0,110.0,107.8)
+#  path3 = c(100,140,105)
+  pathMatrix = matrix(path1,nrow=3,ncol=1)
+  for (i in 1:1) {
+    testCollectGHRutkowski(path=pathMatrix[,i],
+                           r=0.0,
+                           mu=0.1,
+                           lambda=0.1,
+                           u=1.2,
+                           d=0.8)
+    cat('\n',rep('-',30),'\n')
+  }
+} 
