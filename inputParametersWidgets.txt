@@ -1,0 +1,74 @@
+# inputParametersWidgets.txt
+window title="Rutkowski Input Parameters" name="inputParameters"
+notebook tabs="MarketInstruments Simulation" \  # Two tabs
+         font="Times" \ 
+         width=600 \ 
+         height=250
+#### Tab 1 ######################################
+grid nrow=2 ncol=3 toptitle="Financial Instruments"
+ grid nrow=1 ncol=1 toptitle="Stock" 
+  vector length=3 \ 
+         names="sigma drift S0" \ 
+         labels="" values="0.10 0.0 100" \ 
+         edit=TRUE \ 
+         mode=numeric
+ grid nrow=1 ncol=1 toptitle="Bond" 
+  vector length=1 names="r" labels="r" values=0.0 edit=TRUE mode=numeric
+ grid nrow=1 ncol=2 toptitle="Option"
+  droplist name="optionType" \  
+           values="Call Put Straggle" \ 
+           labels="Call Put Straggle" \ 
+           edit=TRUE add=FALSE \ 
+           value="character" \ 
+           selected=1 \ 
+           width=12 \ 
+           padx=5 pady=5  
+  entry label=Strike \ 
+        name=strike \ 
+        value=100 \ 
+        edit=TRUE \ 
+        mode=numeric \ 
+        width=5
+#
+ label text="Cost Percentages" width=18 sticky="S" anchor="e"
+ grid nrow=1 ncol=1 toptitle="Cost"
+  vector length=2 names="lambda mu" \ 
+         labels="" edit=TRUE mode=numeric values="0.01 0.01"
+ null
+##### Tab 2
+grid nrow=3 ncol=1
+ grid nrow=1 ncol=1 toptitle="Time" 
+  vector length=2 names="nFlips TimeToExpiration" \ 
+         labels="" \ 
+         mode=numeric \ 
+         values="16 0.1666"
+ grid nrow=1 ncol=1 toptitle="Paths"
+  entry name=nPaths value=100 edit=TRUE mode=numeric width=5
+ grid nrow=1 ncol=1 toptitle="Contour" 
+  vector length=6 names="uStart uEnd dStart dEnd nPtsU nPtsD" \ 
+         labels="" mode=numeric \ 
+         values="1.01 1.20 0.80 0.99 50 50"
+#
+#### End of Tabbed notebook  ######
+#
+entry name="runNumber" \ 
+      value=999 \ 
+      edit=TRUE \ 
+      mode=numeric \ 
+      label="runNumber"  \ 
+      width=5
+text name="comment" edit=TRUE padx=5 pady=5 width=40  value="Type comment in this field"
+#
+grid nrow=1 ncol=2 pady=10 sidetitle="Actions: " sidefont="Helvetica 12 bold"
+button text="Collect values" function="collectValues"
+button text="EXIT" function=closeWin
+####
+# grid nrow=2 ncol=1
+button text="Set Directory" \  
+       function="doAction" \ 
+       action="selectDir(usewidget=`WD`)"
+entry name="WD" mode="character" width=60 pady="10 5"
+####
+history pady=5
+
+
