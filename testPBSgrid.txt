@@ -1,0 +1,28 @@
+window title="Test Tabbed Window"
+notebook tabs="tab1 tab2" 
+grid nrow=1 ncol=3
+vector \ 
+ length=2 \ 
+ names="S0 K" \ 
+ values="120 100"
+check \ 
+ name=useStockVolatility \ 
+ mode="logical" \ 
+ checked=FALSE \ 
+ text="Use Stock Volatility"
+button \ 
+ text=" Run Function" \ 
+ function=usingInputData
+grid nrow=2 ncol=1
+vector \ 
+ length=4 \ 
+ names="aa bb cc dd" \ 
+ values="2 4 6 8"
+text \ 
+ name=fileName \ 
+ height=1 \ 
+ width=60 \ 
+ edit=TRUE \ 
+ mode="character" \ 
+ scrollbar=FALSE \ 
+ value="Enter file name"

@@ -1,0 +1,10 @@
+# testInclude.txt
+window title="Test Include"
+notebook tabs="Option Stock" font="Times" width=600 height=200
+vector length=4 \                                 
+   names="S0 K optionPrice rAnnual" \ 
+   labels=" S0 'K(strike)' optionPrice rAnnual" \ 
+   values="100 100 10 0.0" 
+vector length=3 \                                   
+   names="volatility lambda mu" \ 
+   values="0.20 0.01 0.01"

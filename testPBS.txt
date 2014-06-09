@@ -1,0 +1,43 @@
+window title="Test Tabbed Window"
+notebook tabs="finance tree contour simulation"    # Four tabs in a notebook format
+ grid nrow=3 ncol=1                                 # First tab contains three rows of widgets
+  vector length=4 \                                  # Tab 1: Grid row 1: First row has four variables
+   names="S0 K optionPrice rAnnual" \ 
+   labels=" S0 'K(strike)' optionPrice rAnnual" \ 
+   values="100 100 10 0.0" 
+  vector length=3 \                                  # Tab 1: Grid row 2: Second row has three variables  
+   names="volatility lambda mu" \ 
+   values="0.20 0.01 0.01"
+  grid nrow=1 ncol=2                                 # Tab 1: Grid row 3: Third row has grid of two columns
+   check \                                            # Tab 1: Grid row 3: Column 1: Check box
+    name=useStockVolatility \ 
+    mode="logical" \ 
+    checked=TRUE \ 
+    text="Use Stock Volatility"
+  button text="Run Simulation" function=usingInputData # Tab 1: Grid row 3: Column 2: Button to run simulation
+ vector length=3 \                                     # Tab 2: One vector of three variables
+  names="nFlips TimeToExpiration nDaysInYear" \
+  values="16 0.333 255" 
+ vector length=3 \                                     # Tab 3: One vector of three variables
+  names="nUDPairsToUse nPtsD nPtsU" \ 
+  values="100 50 50"
+ grid nrow=3 ncol=1                                    # Tab 4: Grid of three rows
+  vector length=5 \                                     # Tab 4: Grid row 1: Vector of five variables
+   names="nPaths seed drift percentCRR runNumber" \ 
+   values="100 12345 0.10 1.0 999"
+  entry \                                               # Tab 4: Grid row 2: Text field
+   name=parameterFileName \ 
+   value="parameterFile1.txt" \ 
+   width=50 \ 
+   label="Parameter file name" \ 
+   edit=TRUE \ 
+   mode="character"
+  entry \                                              # Tab 4: Grid row 3: Text field
+   name=outputFileName \ 
+   value="outputFile1" \ 
+   width=50 \ 
+   label="Output file name" \ 
+   edit=TRUE \ 
+   mode="character"
+##############################
+history

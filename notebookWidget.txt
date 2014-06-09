@@ -1,0 +1,54 @@
+# notebookWidget.txt
+window title="NotebookWidget.txt"
+notebook tabs="Arrays RadioButtons" \  # Two tabs
+         font="Times" \ 
+         width=600 \ 
+         height=200
+#### Tab 1
+grid nrow=4 ncol=3                # Tab 1 4x3 grid
+ label text="myMatrix" justify="center" pady=0 # Tab 1 Row 1: three labels
+ label text="myDataFrame" justify="center" pady=0
+ label text="myInputDataFrame" justify="center" pady=0
+object name="myMatrix" \          # Tab 1:Row 2 has three arrays
+       rowshow=3 \ 
+       rowlabels=FALSE \ 
+       edit=TRUE
+object name=myDataFrame \ 
+       rowshow=0 \ 
+       rowlabels=FALSE \ 
+       edit=TRUE \ 
+       collabels=TRUE \ 
+       padx=5 \ 
+       pady=5
+# table name=myDataFrame  DOES NOT WORK PROPERLY
+data nrow=3 ncol=3 \ 
+     names="myInputDataFrame" \ 
+     modes="numeric character logical" \ 
+     rowlabels="row1 row2 row3" \ 
+     collabels="col1 col2 col3" \ 
+     font="Times bold 10" \ 
+     colnames="varNumeric varCharacter varLogical" \  
+     entryfg="red" \ 
+     byrow=FALSE \ 
+     values="11 12 13 'a' 'b' 'c' TRUE TRUE FALSE" \ 
+     edit=TRUE \ 
+     width=10
+#
+ null                            # Tab 1: Row 3 has null label null
+ label text="myLogicalVector" pady=0 justify="center"
+ null
+#
+ null                            # Tab 1:Row 4 has null vector null
+ object name=myLogicalVector \ 
+       rowshow=0 \ 
+       edit=TRUE \ 
+       vertical=FALSE \ 
+       collabels=TRUE
+ null
+##### Tab 2
+grid nrow=1 ncol=3              # Tab 2 has a row of three radio buttons
+ radio name=Model value="CRR" text="CRR" mode="character"
+ radio name=Model value="Rutkowski" text="Rutkowski" mode="character"
+ radio name=Model value="Kosinsky" text="Kosinsky" mode="character"  # Tab 2 ends here
+####
+

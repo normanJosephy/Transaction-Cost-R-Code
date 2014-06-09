@@ -1,0 +1,96 @@
+# widgetDriver.txt
+window title="widget Driver Window" name="Window1"
+notebook tabs="Arrays RadioButtons" \  # Two tabs
+         font="Times" \ 
+         width=600 \ 
+         height=250
+#### Tab 1 ######################################
+grid nrow=2 ncol=3 toptitle="Data"
+ grid nrow=1 ncol=1 toptitle="myMatrix Values" \ 
+      borderwidth=2 relief="ridge" \ 
+      padx=5
+  object name="myMatrix" \    # Tab 1:Row 2 has three arrays
+       rowshow=3 \ 
+       rowlabels=FALSE \ 
+       edit=TRUE
+ grid nrow=1 ncol=1 \ 
+   toptitle="myDataFrame Values"\  
+   borderwidth=2 \ 
+   relief="groove" \ 
+   padx=5 pady=5
+  object name=myDataFrame \ 
+       rowshow=0 \ 
+       rowlabels=FALSE \ 
+       edit=TRUE \ 
+       collabels=TRUE \ 
+       padx=7 \ 
+       pady=0
+# table name=myDataFrame  DOES NOT WORK PROPERLY
+grid nrow=1 ncol=1 toptitle="myInputDataFrame Values" \ 
+     borderwidth=2 relief="solid" \ 
+     padx=5
+data nrow=3 ncol=3 \ 
+     names="myInputDataFrame" \ 
+     modes="numeric character logical" \ 
+     rowlabels="row1 row2 row3" \ 
+     collabels="col1 col2 col3" \ 
+     font="Times bold 10" \ 
+     colnames="varNumeric varCharacter varLogical" \  
+     entryfg="red" \ 
+     byrow=FALSE \ 
+     values="11 12 13 'a' 'b' 'c' TRUE TRUE FALSE" \ 
+     edit=TRUE \ 
+     width=10
+#
+ null                            
+ grid nrow=1 ncol=1 toptitle="myLogicalVector Values" \ 
+     borderwidth=2 relief="ridge" \ 
+     padx=5 pady="5 15"
+ object name=myLogicalVector \ 
+       rowshow=0 \ 
+       edit=TRUE \ 
+       vertical=FALSE \ 
+       collabels=TRUE
+ null
+##### Tab 2
+grid nrow=1 ncol=2 
+ grid nrow=1 ncol=3 toptitle="Model Choice" pady=1
+  radio name=Model value="CRR" text="CRR" mode="character"
+  radio name=Model value="Rutkowski" text="Rutkowski" mode="character"
+  radio name=Model value="Kosinsky" text="Kosinsky" mode="character"  
+#
+ grid nrow=1 ncol=1 toptitle="Option Choice"
+  droplist name="optionType" \  
+  values="Call Put Straggle" \ 
+  labels="Call Put Straggle" \ 
+  edit=TRUE add=FALSE \ 
+  value="character" \ 
+  selected=1 \ 
+  padx=5 pady=5
+#
+#### End of Tabbed notebook  ######
+# grid nrow=1 ncol=1 pady=5 toptitle="Working Directory"
+# object name=myWorkingDir edit=TRUE width=60
+# grid nrow=1 ncol=1 pady=5 toptitle="Data Directory"
+# object name=myDataDir edit=TRUE width=60
+#
+text name="comment" edit=TRUE padx=5 pady=5 width=40  value="Type comment in this field"
+#
+grid nrow=1 ncol=3 pady=10 sidetitle="Actions: " sidefont="Helvetica 12 bold"
+  button text="Window Values" function="windowValues"
+  button text="Collect values" function="collectValues"
+#  button text="Continue" function=doAction action="focusRgui(\"windows\")"
+  button text="EXIT" function=closeWin
+####
+grid nrow=2 ncol=1
+button text="Set Directory"  function="doAction" action="selectDir(usewidget=`WD`)"
+entry name="WD" mode="character" width=60 pady="10 5"
+####
+grid nrow=2 ncol=1
+button text="Set File" function="doAction" action="selectFile(usewidget=`FN`)"
+entry name="FN" mode="character" width=50
+####
+####
+history pady=5
+
+

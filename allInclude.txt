@@ -1,0 +1,5 @@
+# allInclude.txt
+window title="All Widgets"
+#include file="notebookWidget.txt"
+#include file="testInclude.txt"
+include file="widgetDriver1.txt"

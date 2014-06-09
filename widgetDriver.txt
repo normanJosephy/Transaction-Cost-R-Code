@@ -1,0 +1,73 @@
+# widgetDriver.txt
+window title="widget Driver Window" name="Window1"
+notebook tabs="Arrays RadioButtons" \  # Two tabs
+         font="Times" \ 
+         width=600 \ 
+         height=250
+#### Tab 1
+# grid nrow=4 ncol=3                # Tab 1 4x3 grid
+#  label text="myMatrix" justify="center" pady=0 # Tab 1 Row 1: three labels
+#  label text="myDataFrame" justify="center" pady=0
+#  label text="myInputDataFrame" justify="center" pady=0
+grid nrow=2 ncol=3 toptitle="Data"
+ grid nrow=1 ncol=1 toptitle="myMatrix Values" borderwidth=2 relief="ridge" padx=5
+  object name="myMatrix" \          # Tab 1:Row 2 has three arrays
+       rowshow=3 \ 
+       rowlabels=FALSE \ 
+       edit=TRUE
+ grid nrow=1 ncol=1 toptitle="myDataFrame Values" pady=0 borderwidth=2 relief="groove" padx=5 pady=5
+  object name=myDataFrame \ 
+       rowshow=0 \ 
+       rowlabels=FALSE \ 
+       edit=TRUE \ 
+       collabels=TRUE \ 
+       padx=7 \ 
+       pady=0
+# table name=myDataFrame  DOES NOT WORK PROPERLY
+grid nrow=1 ncol=1 toptitle="myInputDataFrame Values" borderwidth=2 relief="solid" padx=5
+data nrow=3 ncol=3 \ 
+     names="myInputDataFrame" \ 
+     modes="numeric character logical" \ 
+     rowlabels="row1 row2 row3" \ 
+     collabels="col1 col2 col3" \ 
+     font="Times bold 10" \ 
+     colnames="varNumeric varCharacter varLogical" \  
+     entryfg="red" \ 
+     byrow=FALSE \ 
+     values="11 12 13 'a' 'b' 'c' TRUE TRUE FALSE" \ 
+     edit=TRUE \ 
+     width=10
+#
+# null                            # Tab 1: Row 3 has null label null
+# label text="myLogicalVector" pady=0 justify="center"
+# null
+#
+ null                            # Tab 1:Row 4 has null vector null
+grid nrow=1 ncol=1 toptitle="myLogicalVector Values" borderwidth=2 relief="ridge" padx=5 pady="5 15"
+ object name=myLogicalVector \ 
+       rowshow=0 \ 
+       edit=TRUE \ 
+       vertical=FALSE \ 
+       collabels=TRUE
+ null
+##### Tab 2
+grid nrow=1 ncol=2 
+ grid nrow=1 ncol=3 toptitle="Model Choice" pady=1            # Tab 2 has a row of three radio buttons
+  radio name=Model value="CRR" text="CRR" mode="character"
+  radio name=Model value="Rutkowski" text="Rutkowski" mode="character"
+  radio name=Model value="Kosinsky" text="Kosinsky" mode="character"  # Tab 2 ends here
+ grid nrow=1 ncol=1 toptitle="Option Choice"
+  droplist name="optionType" \  
+  values="Call Put Straggle" \ 
+  labels="Call Put Straggle" \ 
+  edit=TRUE add=FALSE \ 
+  value="character" \ 
+  selected=1 \ 
+  padx=5 pady=5
+#### sidefont does not work
+grid nrow=1 ncol=3 pady=10 sidetitle="Actions: " sidefont="Helvetica 12 bold"
+button text="Window Values" function="windowValues"
+button text="Collect values" function="collectValues"
+button text="EXIT" function=closeWin
+####
+  history pady=5 text="S"
