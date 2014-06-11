@@ -1,6 +1,10 @@
 # createPathsFromIBMPricesUpdated.R  3/24/2011 7:03:22 PM
 
 require(PBSmodelling)
+require(lattice)
+require(latticeExtra)
+
+source("plotPathsUsingLattice.R")
 
 # 9/26/2011
 # Dates changed in IBMData() to sept. to sept. data
@@ -78,12 +82,10 @@ createDailyPathsFromJumps = function(jumps,S0,nPaths=100,nNewPointsOnPath=6) {
 
 # File IBMData.Rdata created by function IBMData().
 # That file is read by createPathsAndJumpsFromIBMData().
-createPathsAndJumpsFromIBMData = function(nPaths=100,
-                                          nNewPointsOnPath=6,
-                                          S0=190.65) {
-#    dataDir='c:/Research/Lucy/LucyVitaTCostAlgorithm-july2012-part2/'
-#    setwd(dataDir)
+createPathsAndJumpsFromIBMData = function() {
+#   
     ans = getWinVal(scope="L")
+    unpackList(ans,scope="L")
     fileName = FN
     load(fileName)
 #    S0 = coredata(last(ibm))
@@ -94,6 +96,38 @@ createPathsAndJumpsFromIBMData = function(nPaths=100,
     invisible(list(paths=paths,ibm=ibm))
     }
 
+testCreatePathsAndJumpsFromIBMData = function() {
+  ans = getWinVal(scope="L")
+  unpackList(ans,scope="L")
+  answer = createPathsAndJumpsFromIBMData()
+  plotPaths(answer$paths,answer$ibm)
+}
+
+# require(lattice)
+
+# plot simulated paths using lattice
+plotPaths = function(paths,actualPath){
+  x = 1:nrow(paths)
+  dataList = list(actualPath=actualPath)
+  p = xyplot(c(paths) ~ rep(x,ncol(paths)),
+             groups=c(col(paths)), 
+             type='l',
+             lwd=1,
+             xlab='Time',
+             ylab='Stock price',
+             main='Simulated IBM Stock Price Paths')
+  pp = p + layer(panel.points(x=x,y=actualPath,pch=19,cex=1.3,col='black'),data=dataList)
+  invisible(pp)
+}
+
+testPlotUsingLattice = function() {
+  paths = newPathsFromNewIBMData()
+  if (! exists('ibmFuture')) load('IBMActualPath.Rdata')
+  p     = paths[,1:40] # Use 40 paths in plot
+  pp    = plotPaths(paths=p,actualPath=ibmFuture)
+  print(pp)
+}
+###############################################################
 # volatilityOneCompany assumes number of days in year as 252.
 # Changed name of stock price data to coData; it was coDataOneYear.
 volatilityOneCompany = function(coData,nDaysInYear=252) {

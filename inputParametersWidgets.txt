@@ -42,8 +42,13 @@ grid nrow=3 ncol=1
          labels="" \ 
          mode=numeric \ 
          values="16 0.1666"
- grid nrow=1 ncol=1 toptitle="Paths"
-  entry name=nPaths value=100 edit=TRUE mode=numeric width=5
+ grid nrow=1 ncol=2 toptitle="Paths"
+  entry name=nPaths value=100 \ 
+        edit=TRUE mode=numeric \ 
+        width=5 label=nPaths
+  entry name=nNewPointsOnPath value=6 \ 
+        edit=TRUE mode=numeric \ 
+        width=5 label=nNewPts
  grid nrow=1 ncol=1 toptitle="Contour" 
   vector length=6 names="uStart uEnd dStart dEnd nPtsU nPtsD" \ 
          labels="" mode=numeric \ 
@@ -51,7 +56,9 @@ grid nrow=3 ncol=1
 ##### Tab 3 ##################
 grid nrow=1 ncol=3 toptitle="Tests"
 button text="CreateContour" function="id" padx=5
-button text="CreatePaths" function="id"   padx=5
+button text="CreatePaths" \ 
+       function="testCreatePathsAndJumpsFromIBMData"  \ 
+       padx=5
 button text="CreateDelta" function="id"   padx=5
 #### End of Tabbed notebook  ######
 #
@@ -76,7 +83,9 @@ entry name="WD" mode="character" width=75 pady="10 5"
 button text="Set Data File" \ 
        function="doAction" \ 
        action="selectFile(usewidget=`FN`)"
-entry name="FN" mode="character" width=75 pady="10 5"
+entry name="FN" mode="character" \ 
+      width=75 pady="10 5" \ 
+      value="C:/research/Lucy-2014/Transaction-Cost-R-Code/IBMData2014.Rdata"
 ####
 history pady=5
 
