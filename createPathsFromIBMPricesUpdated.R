@@ -1,4 +1,7 @@
 # createPathsFromIBMPricesUpdated.R  3/24/2011 7:03:22 PM
+
+require(PBSmodelling)
+
 # 9/26/2011
 # Dates changed in IBMData() to sept. to sept. data
 # IBMData() modified to save ibm time series in file IBMData.Rdata
@@ -24,20 +27,23 @@
 
 # 11/9/2013 Modified to collect most recent data
 # switch to c:/Research/Lucy-Oct-Nov2013RComputationsForLatestVersionOfPaper/
+# 6/9/2014 updated ibm data to be stored in 
+#   c:/Research/Lucy-2014/Transaction-Cost-R-Code
+
 
 library(quantmod)   # getSymbols
 library(zoo)
 library(xts)
 library(lubridate)
 
-IBMData = function(fileName='IBMData2013.Rdata') {
-    fromDate = '2012-11-08'
-    toDate   = '2013-11-08'
+IBMData = function(fileName='IBMData2014.Rdata') {
+    fromDate = '2013-06-01'
+    toDate   = '2014-06-01'
     # getSymbols creates IBM in workspace
     getSymbols('IBM',src='yahoo',from=fromDate,to=toDate)
     ibm = IBM$IBM.Close[,1,drop=TRUE]
-    dataDir='c:/Research/Lucy-Oct-Nov2013RComputationsFor LatestVersionOfPaper/'
-    setwd(dataDir)
+    dataDir=setwdGUI()
+  # setwd(dataDir)
     save(ibm,file=fileName)
     invisible(ibm)
                     }
@@ -77,7 +83,8 @@ createPathsAndJumpsFromIBMData = function(nPaths=100,
                                           S0=190.65) {
 #    dataDir='c:/Research/Lucy/LucyVitaTCostAlgorithm-july2012-part2/'
 #    setwd(dataDir)
-    fileName = 'IBMData.Rdata'
+    ans = getWinVal(scope="L")
+    fileName = FN
     load(fileName)
 #    S0 = coredata(last(ibm))
     # Use entire IBM time series to construct jump population

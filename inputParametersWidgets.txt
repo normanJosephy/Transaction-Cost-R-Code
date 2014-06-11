@@ -1,6 +1,6 @@
 # inputParametersWidgets.txt
 window title="Rutkowski Input Parameters" name="inputParameters"
-notebook tabs="MarketInstruments Simulation" \  # Two tabs
+notebook tabs="MarketInstruments Simulation Tests" \  # Two tabs
          font="Times" \ 
          width=600 \ 
          height=250
@@ -35,7 +35,7 @@ grid nrow=2 ncol=3 toptitle="Financial Instruments"
   vector length=2 names="lambda mu" \ 
          labels="" edit=TRUE mode=numeric values="0.01 0.01"
  null
-##### Tab 2
+##### Tab 2 ###################
 grid nrow=3 ncol=1
  grid nrow=1 ncol=1 toptitle="Time" 
   vector length=2 names="nFlips TimeToExpiration" \ 
@@ -48,7 +48,11 @@ grid nrow=3 ncol=1
   vector length=6 names="uStart uEnd dStart dEnd nPtsU nPtsD" \ 
          labels="" mode=numeric \ 
          values="1.01 1.20 0.80 0.99 50 50"
-#
+##### Tab 3 ##################
+grid nrow=1 ncol=3 toptitle="Tests"
+button text="CreateContour" function="id" padx=5
+button text="CreatePaths" function="id"   padx=5
+button text="CreateDelta" function="id"   padx=5
 #### End of Tabbed notebook  ######
 #
 entry name="runNumber" \ 
@@ -59,15 +63,20 @@ entry name="runNumber" \
       width=5
 text name="comment" edit=TRUE padx=5 pady=5 width=40  value="Type comment in this field"
 #
-grid nrow=1 ncol=2 pady=10 sidetitle="Actions: " sidefont="Helvetica 12 bold"
-button text="Collect values" function="collectValues"
-button text="EXIT" function=closeWin
+grid nrow=1 ncol=1 pady=10 sidetitle="Actions: " sidefont="Helvetica 12 bold"
+# button text="Collect values" function="collectValues"
+button text="QUIT" function=closeWin
 ####
 # grid nrow=2 ncol=1
 button text="Set Directory" \  
        function="doAction" \ 
        action="selectDir(usewidget=`WD`)"
-entry name="WD" mode="character" width=60 pady="10 5"
+entry name="WD" mode="character" width=75 pady="10 5"
+#
+button text="Set Data File" \ 
+       function="doAction" \ 
+       action="selectFile(usewidget=`FN`)"
+entry name="FN" mode="character" width=75 pady="10 5"
 ####
 history pady=5
 
