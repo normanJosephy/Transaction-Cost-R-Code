@@ -2,10 +2,12 @@
 
 require(PBSmodelling)
 
+source("createPathsFromIBMPricesUpdated.R")
+
 # runWidget creates input widget
 #
 runWidgetInputParameters = function() {
-  setwdGUI()
+#  setwdGUI()
   createWin("inputParametersWidgets.txt")
 #  print(ls(envir=.PBSmodEnv))
   readline("Press any key with cursor in console to continue")

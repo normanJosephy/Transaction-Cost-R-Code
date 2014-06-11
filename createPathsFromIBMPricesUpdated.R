@@ -1,6 +1,10 @@
 # createPathsFromIBMPricesUpdated.R  3/24/2011 7:03:22 PM
 
 require(PBSmodelling)
+require(lattice)
+require(latticeExtra)
+
+# source("plotPathsUsingLattice.R")
 
 # 9/26/2011
 # Dates changed in IBMData() to sept. to sept. data
@@ -30,7 +34,11 @@ require(PBSmodelling)
 # 6/9/2014 updated ibm data to be stored in 
 #   c:/Research/Lucy-2014/Transaction-Cost-R-Code
 
-
+# 6/11/2014 Changed createPathsAndJumpsFromIBMData() to create
+#           paths based on training period ibm data and use
+#           ibm value at first value in actualPath as S0 
+#           The actualPath is ibm[(n-nNewPts):n], where
+#           n = length of ibm time series, and S0=ibm[n-nNewPts]
 library(quantmod)   # getSymbols
 library(zoo)
 library(xts)
@@ -77,16 +85,16 @@ createDailyPathsFromJumps = function(jumps,S0,nPaths=100,nNewPointsOnPath=6) {
     }
 
 # File IBMData.Rdata created by function IBMData().
-# That file is read by createPathsAndJumpsFromIBMData().
-createPathsAndJumpsFromIBMData = function(nPaths=100,
-                                          nNewPointsOnPath=6,
-                                          S0=190.65) {
-#    dataDir='c:/Research/Lucy/LucyVitaTCostAlgorithm-july2012-part2/'
-#    setwd(dataDir)
+# That file is read by createPathsAndJumpsFromIBMData() to extract time series ibm.
+createPathsAndJumpsFromIBMData = function() {
+#   
+  #  Using testing data start value as S0 for simulated paths.
     ans = getWinVal(scope="L")
+    unpackList(ans,scope="L")
     fileName = FN
     load(fileName)
-#    S0 = coredata(last(ibm))
+    actualPathStartingValueAt = length(ibm)-nNewPointsOnPath
+    S0 = coredata(ibm)[actualPathStartingValueAt]
     # Use entire IBM time series to construct jump population
     jumps = computeDailyJumps(priceData=ibm)
     paths = createDailyPathsFromJumps(jumps=jumps,
@@ -94,6 +102,43 @@ createPathsAndJumpsFromIBMData = function(nPaths=100,
     invisible(list(paths=paths,ibm=ibm))
     }
 
+testCreatePathsAndJumpsFromIBMData = function() {
+  ans = getWinVal(scope="L")
+  unpackList(ans,scope="L")
+  answer = createPathsAndJumpsFromIBMData()
+  nPtsOnNewPaths = nrow(answer$paths)
+  nPtsOnIBM = length(answer$ibm)
+  actualPathIndexSet = (nPtsOnIBM - nPtsOnNewPaths+1):nPtsOnIBM
+  actualPath = coredata(answer$ibm[actualPathIndexSet])
+  pp = plotPaths(answer$paths,actualPath)
+  print(pp)
+}
+
+# require(lattice)
+
+# plot simulated paths using lattice
+plotPaths = function(paths,actualPath){
+  x = 1:nrow(paths)
+  dataList = list(actualPath=actualPath)
+  p = xyplot(c(paths) ~ rep(x,ncol(paths)),
+             groups=c(col(paths)), 
+             type='l',
+             lwd=1,
+             xlab='Time',
+             ylab='Stock price',
+             main='Simulated IBM Stock Price Paths')
+  pp = p + layer(panel.points(x=x,y=actualPath,pch=19,cex=1.3,col='black'),data=dataList)
+  invisible(pp)
+}
+
+testPlotUsingLattice = function() {
+  paths = newPathsFromNewIBMData()
+  if (! exists('ibmFuture')) load('IBMActualPath.Rdata')
+  p     = paths[,1:40] # Use 40 paths in plot
+  pp    = plotPaths(paths=p,actualPath=ibmFuture)
+  print(pp)
+}
+###############################################################
 # volatilityOneCompany assumes number of days in year as 252.
 # Changed name of stock price data to coData; it was coDataOneYear.
 volatilityOneCompany = function(coData,nDaysInYear=252) {
