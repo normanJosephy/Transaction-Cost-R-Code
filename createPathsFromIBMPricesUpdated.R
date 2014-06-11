@@ -4,8 +4,6 @@ require(PBSmodelling)
 require(lattice)
 require(latticeExtra)
 
-source("plotPathsUsingLattice.R")
-
 # 9/26/2011
 # Dates changed in IBMData() to sept. to sept. data
 # IBMData() modified to save ibm time series in file IBMData.Rdata
@@ -34,7 +32,11 @@ source("plotPathsUsingLattice.R")
 # 6/9/2014 updated ibm data to be stored in 
 #   c:/Research/Lucy-2014/Transaction-Cost-R-Code
 
-
+# 6/11/2014 Changed createPathsAndJumpsFromIBMData() to create
+#           paths based on training period ibm data and use
+#           ibm value at first value in actualPath as S0 
+#           The actualPath is ibm[(n-nNewPts):n], where
+#           n = length of ibm time series, and S0=ibm[n-nNewPts]
 library(quantmod)   # getSymbols
 library(zoo)
 library(xts)
@@ -81,14 +83,15 @@ createDailyPathsFromJumps = function(jumps,S0,nPaths=100,nNewPointsOnPath=6) {
     }
 
 # File IBMData.Rdata created by function IBMData().
+
 # That file is read by createPathsAndJumpsFromIBMData().
 createPathsAndJumpsFromIBMData = function() {
-#   
     ans = getWinVal(scope="L")
     unpackList(ans,scope="L")
     fileName = FN
     load(fileName)
-#    S0 = coredata(last(ibm))
+    actualPathStartingValueAt = length(ibm)-nNewPointsOnPath
+    S0 = coredata(ibm)[actualPathStartingValueAt]
     # Use entire IBM time series to construct jump population
     jumps = computeDailyJumps(priceData=ibm)
     paths = createDailyPathsFromJumps(jumps=jumps,
@@ -100,7 +103,12 @@ testCreatePathsAndJumpsFromIBMData = function() {
   ans = getWinVal(scope="L")
   unpackList(ans,scope="L")
   answer = createPathsAndJumpsFromIBMData()
-  plotPaths(answer$paths,answer$ibm)
+  nPtsOnNewPaths = nrow(answer$paths)
+  nPtsOnIBM = length(answer$ibm)
+  actualPathIndexSet = (nPtsOnIBM - nPtsOnNewPaths+1):nPtsOnIBM
+  actualPath = coredata(answer$ibm[actualPathIndexSet])
+  pp = plotPaths(answer$paths,actualPath)
+  print(pp)
 }
 
 # require(lattice)

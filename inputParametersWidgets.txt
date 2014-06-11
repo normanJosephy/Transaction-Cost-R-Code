@@ -49,6 +49,7 @@ grid nrow=3 ncol=1
   entry name=nNewPointsOnPath value=6 \ 
         edit=TRUE mode=numeric \ 
         width=5 label=nNewPts
+
  grid nrow=1 ncol=1 toptitle="Contour" 
   vector length=6 names="uStart uEnd dStart dEnd nPtsU nPtsD" \ 
          labels="" mode=numeric \ 
