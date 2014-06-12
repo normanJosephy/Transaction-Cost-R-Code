@@ -24,7 +24,7 @@ grid nrow=2 ncol=3 toptitle="Financial Instruments"
            width=12 \ 
            padx=5 pady=5  
   entry label=Strike \ 
-        name=strike \ 
+        name=K \ 
         value=100 \ 
         edit=TRUE \ 
         mode=numeric \ 
