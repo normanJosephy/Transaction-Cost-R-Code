@@ -56,7 +56,9 @@ grid nrow=3 ncol=1
          values="1.01 1.20 0.80 0.99 50 50"
 ##### Tab 3 ##################
 grid nrow=1 ncol=3 toptitle="Tests"
-button text="CreateContour" function="id" padx=5
+button text="CreateContour" \ 
+       function="testCreateRutkowskiContourNew" \ 
+       padx=5
 button text="CreatePaths" \ 
        function="testCreatePathsAndJumpsFromIBMData"  \ 
        padx=5

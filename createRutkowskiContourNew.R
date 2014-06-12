@@ -10,7 +10,7 @@ createRutContour= function() {
   d         = udBaseRut['d']
   priceBaseRut = computeBasePriceNew(u=u,d=d)
   dLRut        = computeGridPriceNew()
-  udMatrix2    = getContourRutkowski(dLRut,priceBaseRut)
+  udMatrix2    = getContourRutkowski(dL=dLRut,oPrice=priceBaseRut)
   returnList   = list(udBaseRut=udBaseRut,
                   priceBaseRut=priceBaseRut,
                   dLRutkowski=dLRut,
@@ -57,7 +57,9 @@ computeGridPriceNew = function(){
   invisible(list(u=uValues,d=dValues,c=priceArray))
 }
 
-getContourRutkowski = function(dL,S0=100,oPrice=30) {
+getContourRutkowski = function(dL,oPrice) {
+ #  ans = getWinVal(scope="L")
+ #  unpackList(ans,scope="L")
   # NO SCALING IN COMPUTATION OF c.
   cLines = contourLines(dL$u,dL$d,dL$c,levels=oPrice)
   if (length(cLines) == 0) {stop('No Rutkowski contour. Exiting program')
