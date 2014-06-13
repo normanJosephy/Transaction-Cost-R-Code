@@ -3,6 +3,9 @@
 require(PBSmodelling)
 
 source("createPathsFromIBMPricesUpdated.R")
+source("createDeltaRutkowskiNew.R")
+source("rutkowski-2.R")
+source("createRutkowskiContourNew.R")
 
 # runWidget creates input widget
 #

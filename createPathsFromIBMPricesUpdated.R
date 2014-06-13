@@ -117,13 +117,15 @@ testCreatePathsAndJumpsFromIBMData = function() {
 plotPaths = function(paths,actualPath){
   x = 1:nrow(paths)
   dataList = list(actualPath=actualPath)
+  yLim = range(c(actualPath,paths))
   p = xyplot(c(paths) ~ rep(x,ncol(paths)),
              groups=c(col(paths)), 
              type='l',
              lwd=1,
              xlab='Time',
              ylab='Stock price',
-             main='Simulated IBM Stock Price Paths')
+             main='Simulated IBM Stock Price Paths',
+             ylim=yLim)
   pp = p + layer(panel.points(x=x,y=actualPath,pch=19,cex=1.3,col='black'),data=dataList)
   invisible(pp)
 }

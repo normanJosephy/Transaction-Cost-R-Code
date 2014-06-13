@@ -1,9 +1,6 @@
 # createDeltaRutkowskiNew.R
 
-source("createPathsFromIBMPricesUpdated.R")
-source("rutkowski-2.R")
-
-createDeltaRutkowskiNew = function(pathMatrix) {
+createDeltaRutkowskiNew = function(u,d,pathMatrix) {
   ans = getWinVal(scope="L")
   unpackList(ans,scope="L")
   nPaths = ncol(pathMatrix)
@@ -34,9 +31,16 @@ createDeltaRutkowskiNew = function(pathMatrix) {
   invisible(outputList)
 }
 
+# Use Rutkowski base u,d pair as u,d at which deltas are created
 testCreateDeltaRutkowskiNew = function() {
   p = createPathsAndJumpsFromIBMData()
   paths = p$paths
-  outputList=createDeltaRutkowskiNew(paths)
-  print(outputList)
+  ud = computeBaseUDNew()
+  u = ud['u']
+  d = ud['d']
+  outputList=createDeltaRutkowskiNew(u,d,paths)
+  unpackList(outputList,scope="L")
+  matplot(1:nrow(GMatrix),GMatrix,type='l',ylab="Portfolio Stock Amount G",
+          xlab="Time")
+#  print(outputList)
 }
