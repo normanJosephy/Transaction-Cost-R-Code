@@ -62,7 +62,9 @@ button text="CreateContour" \
 button text="CreatePaths" \ 
        function="testCreatePathsAndJumpsFromIBMData"  \ 
        padx=5
-button text="CreateDelta" function="id"   padx=5
+button text="CreateDelta" \ 
+       function="testCreateDeltaRutkowskiNew" \ 
+       padx=5
 #### End of Tabbed notebook  ######
 #
 entry name="runNumber" \ 
