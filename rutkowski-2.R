@@ -1,5 +1,7 @@
 # rutkowski-2.R
 
+# 6-14-2014 Needed by the noGUI functions.
+
 # 6/15/2012
 #          Copied functions from different R files to here
 #          for computing Rutkowski algorithm
