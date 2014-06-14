@@ -1,6 +1,6 @@
 # createRutkowskiContourNewNoGUI.R
 
-source('rutkowski-2.R')
+# source('rutkowski-2.R')
 
 # Main function is createRutContour()
 
