@@ -15,6 +15,7 @@ createRutContour= function() {
                   priceBaseRut=priceBaseRut,
                   dLRutkowski=dLRut,
                   udMatrix2=udMatrix2)
+  packListToEnvironment(myList = returnList,myEnvironment = computedEnv)
   invisible(returnList)}
 
 computeBaseUDNew = function() {
@@ -70,11 +71,13 @@ testCreateRutkowskiContourNew = function() {
   cat('\n Rutkowski contour plotted from',nrow(udMatrix2),'(u,d) pairs\n')
   optionPriceRounded = round(priceBaseRut,digits=3)
   mainT1 = paste('Rutkowski contour for option price', optionPriceRounded)
-  mainT2 = paste('Rutkowski surface plot')
+  mainT2 = paste('Rutkowski surface plots')
   plotContour(udMatrix2,
               mainTitle=mainT1)
-  cat('\n Rutkowski option price surface plotted')
   plotSurface(dLRutkowski,mainTitle=mainT2)
+  plotSurface1(dLRutkowski,mainTitle=mainT2)
+  cat('\n Rutkowski option price surface plotted')
+  flush.console()
 }
 
 # cL returned by getContour()
@@ -86,15 +89,16 @@ plotContour = function(cL,mainTitle=NULL) {
 plotSurface1 = function(dL,mainTitle=NULL) {
   persp(dL$u,dL$d,dL$c,
         xlab="u",ylab="d",zlab="c",
-        shade = 0.75, border = TRUE,scale=TRUE,axes=TRUE,
+        shade = 0.15, border = TRUE,scale=TRUE,axes=TRUE,
         ticktyp="detailed",nticks=2,main=mainTitle)
   return(NULL)
 }
 
 plotSurface = function(dL,mainTitle=NULL) {
-  wireframe(dL$c,row.values=dL$u,column.values=dL$d,
+  w = wireframe(dL$c,row.values=dL$u,column.values=dL$d,
             scales=list(arrows=FALSE),main=mainTitle,
             xlab='u',ylab='d',zlab='c',
             drape=TRUE,colorkey=TRUE)
-  
+  print(w)
 }
+

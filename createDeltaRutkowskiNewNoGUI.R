@@ -2,6 +2,7 @@
 
 createDeltaRutkowskiNew = function(u,d) {
   unpackList(myEnv)
+  unpackList(computedEnv)
   pathMatrix = paths
   nPaths = ncol(pathMatrix)
   nTimes = nrow(pathMatrix)
