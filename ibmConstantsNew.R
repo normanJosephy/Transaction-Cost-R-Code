@@ -36,6 +36,7 @@ tests = function() {
 
 ibmConstantsNew = function() {
   myEnv = new.env()
+  computedEnv = new.env()
   with(myEnv,{
   WD = 'C:/research/Lucy-2014/Transaction-Cost-R-Code/data/'
   FN = paste(WD,'IBMData2014.Rdata',sep='')
@@ -70,7 +71,9 @@ ibmConstantsNew = function() {
   nPtsU=50; nPtsD=50
   })
   assign("myEnv",myEnv,envir=.GlobalEnv)
-  cat("\n\n Created environment with run ",myEnv$runNumber, " constants. \n\n")
+  cat("\n\n Created environment myEnv with run ",myEnv$runNumber, " constants. \n\n")
+  assign("computedEnv",computedEnv,envir=.GlobalEnv)
+  cat(" Created environment computedEnv to store computed value\n\n")
   invisible(myEnv)}
 
 testEnvironment = function() {

@@ -82,14 +82,11 @@ createDailyPathsFromJumps = function(jumps,S0,nPaths=100,nNewPointsOnPath=6) {
     invisible(simulatedPaths)
     }
 
-# File IBMData.Rdata created by function IBMData().
 
+# computedEnv created by ibmConstantsNew()
 
-# myEnv created by 
-# That file is read by createPathsAndJumpsFromIBMData().
 createPathsAndJumpsFromIBMData = function() {
-    ans = myEnv
-    unpackList(ans)
+    unpackList(myEnv)
     fileName = FN
     load(fileName)
     actualPathStartingValueAt = length(ibm)-nNewPointsOnPath
@@ -98,28 +95,26 @@ createPathsAndJumpsFromIBMData = function() {
     jumps = computeDailyJumps(priceData=ibm)
     paths = createDailyPathsFromJumps(jumps=jumps,
         S0=S0,nPaths=nPaths,nNewPointsOnPath=nNewPointsOnPath)
-    outputList = list(paths=paths,ibm=ibm)
-    packListToEnvironment(outputList,myEnv)
+    actualPath = computeActualPath(ibm,paths)
+    outputList = list(paths=paths,ibm=ibm,actualPath=actualPath)
+    packListToEnvironment(outputList,computedEnv)
     invisible(outputList)
     }
 
 # Actual path is testing path, the last nPtsOnNewPaths values of ibm.
 
-computeActualPath = function(){
-  nPtsOnNewPaths = nrow(myEnv$paths)
-  nPtsOnIBM = length(myEnv$ibm)
-  actualPathIndexSet = (nPtsOnIBM - nPtsOnNewPaths+1):nPtsOnIBM
-  actualPath = coredata(myEnv$ibm[actualPathIndexSet])
-}
-
-testCreatePathsAndJumpsFromIBMData = function() {
-  answer = createPathsAndJumpsFromIBMData()
-  paths = myEnv$paths
-  ibm   = myEnv$ibm
+computeActualPath = function(ibm,paths){
   nPtsOnNewPaths = nrow(paths)
   nPtsOnIBM = length(ibm)
   actualPathIndexSet = (nPtsOnIBM - nPtsOnNewPaths+1):nPtsOnIBM
   actualPath = coredata(ibm[actualPathIndexSet])
+}
+
+testCreatePathsAndJumpsFromIBMData = function() {
+  answer = createPathsAndJumpsFromIBMData()
+  paths = answer$paths
+  ibm   = answer$ibm
+  actualPath = answer$actualPath
   pp = plotPaths(paths,actualPath)
   print(pp)
 }
