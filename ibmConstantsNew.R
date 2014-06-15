@@ -7,6 +7,19 @@ source("createDeltaRutkowskiNewNoGUI.R")
 source("rutkowski-2.R")
 source("createRutkowskiContourNewNoGUI.R")
 
+savemyEnv = function(fileName) {
+  fullFileName = paste(myEnv$WD,fileName,sep='')
+  save(myEnv,file=fullFileName,envir=.GlobalEnv)
+  cat("\n Saved run ",myEnv$runNumber," in file ",fullFileName,"\n\n")
+}
+
+loadmyEnv = function(fileName,
+    fileDirectory='C:/research/Lucy-2014/Transaction-Cost-R-Code/data/') {
+  fullFileName = paste(fileDirectory,fileName,sep='')
+  load(file = fullFileName,envir = .GlobalEnv)
+  cat("\n Loaded run ",myEnv$runNumber, ' from file \n ',fullFileName,'\n\n')
+}
+
 tests = function() {
   cat("\n Storing constants in environment myEnv\n")
   ibmConstantsNew()
@@ -57,6 +70,7 @@ ibmConstantsNew = function() {
   nPtsU=50; nPtsD=50
   })
   assign("myEnv",myEnv,envir=.GlobalEnv)
+  cat("\n\n Created environment with run ",myEnv$runNumber, " constants. \n\n")
   invisible(myEnv)}
 
 testEnvironment = function() {
