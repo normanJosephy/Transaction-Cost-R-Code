@@ -8,7 +8,7 @@ source("createRutkowskiContourNewNoGUI.R")
 
 ibmConstants = function() {
   myEnv = new.env()
-  WD = 'c:/Research/Lucy-2014/Transaction-Cost-R-Code/data/'
+  WD = 'C:/Norm/Research/Transaction-Cost-R-Code/data/'
   FN = paste(WD,'IBMData2014.Rdata',sep='')
   runNumber = 701
   # Option data
@@ -38,7 +38,7 @@ ibmConstants = function() {
   #
   uStart=1.01; uEnd=1.20
   dStart=0.80; dEnd=0.99
-  nPtsU=20; nPtsD=20
+  nPtsU=50; nPtsD=50
   assign('uStart',uStart,envir=myEnv)
   assign('uEnd',uEnd,envir=myEnv)
   assign('dStart',dStart,envir=myEnv)
