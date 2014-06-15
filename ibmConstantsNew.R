@@ -7,11 +7,24 @@ source("createDeltaRutkowskiNewNoGUI.R")
 source("rutkowski-2.R")
 source("createRutkowskiContourNewNoGUI.R")
 
+tests = function() {
+  cat("\n Storing constants in environment myEnv\n")
+  ibmConstantsNew()
+  cat("\n *** Run testEnvironment ***\n")
+  testEnvironment()
+  cat("\n ***  Run testCreatePathsAndJumpsFromIBMData *** \n")
+  testCreatePathsAndJumpsFromIBMData()
+  cat("\n ***  Run testCreateRutkowskiContourNew *** \n")
+  testCreateRutkowskiContourNew()
+  cat("\n ***  Run testCreateDeltaRutkowskiNew *** \n")
+  testCreateDeltaRutkowskiNew()
+  cat("\n *** DONE *** \n")
+}
 
 ibmConstantsNew = function() {
   myEnv = new.env()
   with(myEnv,{
-  WD = 'C:/Norm/Research/Transaction-Cost-R-Code/data/'
+  WD = 'C:/research/Lucy-2014/Transaction-Cost-R-Code/data/'
   FN = paste(WD,'IBMData2014.Rdata',sep='')
   runNumber = 701
   # Option data
@@ -44,12 +57,13 @@ ibmConstantsNew = function() {
   nPtsU=50; nPtsD=50
   })
   assign("myEnv",myEnv,envir=.GlobalEnv)
-  return(myEnv)}
+  invisible(myEnv)}
 
 testEnvironment = function() {
-  myEnv = ibmConstantsNew()
+#  myEnv = ibmConstantsNew()
   print(ls(name = myEnv))
-  return(myEnv)
+  cat("\n *******************************************")
+  cat("\n\n Run ",myEnv$runNumber, " stored in myEnv\n\n")
 }
 
 # Copied from PBSmodelling package.
