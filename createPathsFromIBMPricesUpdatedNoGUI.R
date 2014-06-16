@@ -1,8 +1,8 @@
 # createPathsFromIBMPricesUpdatedNoGUI.R  6-14-2014 
 
 # require(PBSmodelling)
-require(lattice)
-require(latticeExtra)
+# require(lattice)
+# require(latticeExtra)
 
 # 9/26/2011
 # Dates changed in IBMData() to sept. to sept. data
@@ -37,10 +37,6 @@ require(latticeExtra)
 #           ibm value at first value in actualPath as S0 
 #           The actualPath is ibm[(n-nNewPts):n], where
 #           n = length of ibm time series, and S0=ibm[n-nNewPts]
-library(quantmod)   # getSymbols
-library(zoo)
-library(xts)
-library(lubridate)
 
 IBMData = function(fileName='IBMData2014.Rdata') {
     fromDate = '2013-06-01'
@@ -53,12 +49,6 @@ IBMData = function(fileName='IBMData2014.Rdata') {
     save(ibm,file=fileName)
     invisible(ibm)
                     }
-
-ibmFridaydata = function(ibm) {
-  whichFriday = (wday(ibm) == 6)
-  fridayData  = ibm[whichFriday]
-  invisible(fridayData)
-}
 
 # Copied from dailyPaths.R
 # Modified to accept either zoo object or plain vector

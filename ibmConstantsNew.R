@@ -2,6 +2,14 @@
 
 # This file replaces inputParametersNoGUI.R
 
+require(lattice)
+require(latticeExtra)
+require(quantmod)   # getSymbols
+require(zoo)
+require(xts)
+require(lubridate)
+
+
 source("createPathsFromIBMPricesUpdatedNoGUI.R")
 source("createDeltaRutkowskiNewNoGUI.R")
 source("rutkowski-2.R")
