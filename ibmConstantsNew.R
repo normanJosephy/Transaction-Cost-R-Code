@@ -46,8 +46,13 @@ ibmConstantsNew = function() {
   myEnv = new.env()
   computedEnv = new.env()
   with(myEnv,{
-  WD = 'C:/research/Lucy-2014/Transaction-Cost-R-Code/data/'
-  FN = paste(WD,'IBMData2014.Rdata',sep='')
+  baseDir = getwd()
+  WD = paste(baseDir,'data',sep='/')
+  FN = paste(WD,'IBMData2014.Rdata',sep='/')
+  if (! file.exists(FN)) {
+    cat("\n\n***** File ",FN," does not exist\n ***** EXITING PROGRAM\n\n")
+    invisible(NULL)
+  }
   runNumber = 701
   # Option data
   nDaysInYear = 252
