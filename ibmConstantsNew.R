@@ -2,6 +2,10 @@
 
 # This file replaces inputParametersNoGUI.R
 
+require(quantmod)   # getSymbols
+require(lattice)
+require(latticeExtra)
+
 source("createPathsFromIBMPricesUpdatedNoGUI.R")
 source("createDeltaRutkowskiNewNoGUI.R")
 source("rutkowski-2.R")
@@ -38,8 +42,8 @@ ibmConstantsNew = function() {
   myEnv = new.env()
   computedEnv = new.env()
   with(myEnv,{
-  WD = 'C:/research/Lucy-2014/Transaction-Cost-R-Code/data/'
-  FN = paste(WD,'IBMData2014.Rdata',sep='')
+  WD = 'C:/research/Lucy-2014/Transaction-Cost-R-Code/data'
+  # FN = paste(WD,'IBMData2014.Rdata',sep='')
   runNumber = 701
   # Option data
   nDaysInYear = 252
@@ -69,20 +73,68 @@ ibmConstantsNew = function() {
   uStart=1.01; uEnd=1.20
   dStart=0.80; dEnd=0.99
   nPtsU=50; nPtsD=50
+  stockName = 'IBM'
+  from = '2013-06-01'
+  to   = '2014-06-01'
   })
   assign("myEnv",myEnv,envir=.GlobalEnv)
   cat("\n\n Created environment myEnv with run ",myEnv$runNumber, " constants. \n\n")
   assign("computedEnv",computedEnv,envir=.GlobalEnv)
   cat(" Created environment computedEnv to store computed value\n\n")
+  # Load stock price time series
+  IBMDataFromStoredFile()
   invisible(myEnv)}
+
+# NOTE: IBMDataFromStoredFile() will call IBMDataFromYahoo() if the
+# data file  stockName+Data2014.RData does not exist.
+
+# Run IBMDataFromYahoo to retrieve historical data and store closing
+# prices in file such as IBMData2014.RData in subdirectory WD
+# It also assigns file name to myEnv value FN.
+
+IBMDataFromYahoo = function() {
+  stockName = myEnv$stockName
+  getSymbols(stockName,src='yahoo',
+             from=myEnv$from,to=myEnv$to)
+  # This evaluates (e.g.) IBM$IBM.Close[,1,drop=TRUE]
+  # and assigns stock prices to variable named stockPrices.
+  dataName = paste(stockName,'$',stockName,'.Close[,1,drop=TRUE]',sep='')
+  stockPrices = eval(parse(text=dataName))
+  myEnv$stockPrices = stockPrices
+  dataFileName = paste(stockName,'Data2014.RData',sep='')
+  fullFileName = paste(myEnv$WD,dataFileName,sep='/')
+  save(stockPrices,file = fullFileName)
+  myEnv$FN = fullFileName
+}
+
+# Loads stock prices from e.g. IBMData2014.RData
+# and places them in myEnv$stockPrices
+# It also assigns file name to myEnv variable FN
+IBMDataFromStoredFile = function() {
+  stockName    = myEnv$stockName
+  dataFileName = paste(stockName,'Data2014.RData',sep='')
+  fullFileName = paste(myEnv$WD,dataFileName,sep='/')
+  if (! file.exists(fullFileName)) {
+    IBMDataFromYahoo()
+    return(NULL)
+  }
+  load(file = fullFileName)
+  myEnv$stockPrices = stockPrices
+  myEnv$FN    = fullFileName
+  cat("\n\n Stock prices ", stockName, 'loaded and stored in myEnv\n\n')
+  cat(" File name containing stock price data\n",myEnv$FN,'\n\n')
+}
 
 testEnvironment = function() {
 #  myEnv = ibmConstantsNew()
+  print(" myEnv contents\n")
   print(ls(name = myEnv))
+  print(" computedEnv contents")
+  print(ls(name = computedEnv))
   cat("\n *******************************************")
   cat("\n\n Run ",myEnv$runNumber, " stored in myEnv\n\n")
 }
-
+#########################################################
 # Copied from PBSmodelling package.
 # Modified to unpack an environment.
 # Also works for unpacking a list

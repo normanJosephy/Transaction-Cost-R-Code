@@ -1,9 +1,5 @@
 # createPathsFromIBMPricesUpdatedNoGUI.R  6-14-2014 
 
-# require(PBSmodelling)
-require(lattice)
-require(latticeExtra)
-
 # 9/26/2011
 # Dates changed in IBMData() to sept. to sept. data
 # IBMData() modified to save ibm time series in file IBMData.Rdata
@@ -37,33 +33,12 @@ require(latticeExtra)
 #           ibm value at first value in actualPath as S0 
 #           The actualPath is ibm[(n-nNewPts):n], where
 #           n = length of ibm time series, and S0=ibm[n-nNewPts]
-library(quantmod)   # getSymbols
-library(zoo)
-library(xts)
-library(lubridate)
-
-IBMData = function(fileName='IBMData2014.Rdata') {
-    fromDate = '2013-06-01'
-    toDate   = '2014-06-01'
-    # getSymbols creates IBM in workspace
-    getSymbols('IBM',src='yahoo',from=fromDate,to=toDate)
-    ibm = IBM$IBM.Close[,1,drop=TRUE]
-  #  dataDir=setwdGUI()
-  # setwd(dataDir)
-    save(ibm,file=fileName)
-    invisible(ibm)
-                    }
-
-ibmFridaydata = function(ibm) {
-  whichFriday = (wday(ibm) == 6)
-  fridayData  = ibm[whichFriday]
-  invisible(fridayData)
-}
 
 # Copied from dailyPaths.R
 # Modified to accept either zoo object or plain vector
 # Modified 9/26/2011
 # 7/23/2012 Removed 'not using all data' code.
+
 computeDailyJumps = function(priceData) {
     if ('zoo' %in% class(priceData)) {priceData = coredata(priceData)}
     jumps = priceData[-1]/priceData[-length(priceData)]
@@ -82,44 +57,40 @@ createDailyPathsFromJumps = function(jumps,S0,nPaths=100,nNewPointsOnPath=6) {
     invisible(simulatedPaths)
     }
 
-
 # computedEnv created by ibmConstantsNew()
 
 createPathsAndJumpsFromIBMData = function() {
     unpackList(myEnv)
     fileName = FN
     load(fileName)
-    actualPathStartingValueAt = length(ibm)-nNewPointsOnPath
-    S0 = coredata(ibm)[actualPathStartingValueAt]
-    # Use entire IBM time series to construct jump population
-    jumps = computeDailyJumps(priceData=ibm)
+    actualPathStartingValueAt = length(stockPrices)-nNewPointsOnPath
+    S0 = coredata(stockPrices)[actualPathStartingValueAt]
+    # Use entire stockPrices time series to construct jump population
+    jumps = computeDailyJumps(priceData=stockPrices)
     paths = createDailyPathsFromJumps(jumps=jumps,
         S0=S0,nPaths=nPaths,nNewPointsOnPath=nNewPointsOnPath)
-    actualPath = computeActualPath(ibm,paths)
-    outputList = list(paths=paths,ibm=ibm,actualPath=actualPath)
+    actualPath = computeActualPath(stockPrices,paths)
+    outputList = list(paths=paths,actualPath=actualPath)
     packListToEnvironment(outputList,computedEnv)
     invisible(outputList)
     }
 
 # Actual path is testing path, the last nPtsOnNewPaths values of ibm.
 
-computeActualPath = function(ibm,paths){
+computeActualPath = function(stockPrices,paths){
   nPtsOnNewPaths = nrow(paths)
-  nPtsOnIBM = length(ibm)
+  nPtsOnIBM = length(stockPrices)
   actualPathIndexSet = (nPtsOnIBM - nPtsOnNewPaths+1):nPtsOnIBM
-  actualPath = coredata(ibm[actualPathIndexSet])
+  actualPath = coredata(stockPrices[actualPathIndexSet])
 }
 
 testCreatePathsAndJumpsFromIBMData = function() {
   answer = createPathsAndJumpsFromIBMData()
   paths = answer$paths
-  ibm   = answer$ibm
   actualPath = answer$actualPath
   pp = plotPaths(paths,actualPath)
   print(pp)
 }
-
-# require(lattice)
 
 # plot simulated paths using lattice
 plotPaths = function(paths,actualPath){
@@ -139,10 +110,11 @@ plotPaths = function(paths,actualPath){
 }
 
 testPlotUsingLattice = function() {
-  paths = newPathsFromNewIBMData()
-  if (! exists('ibmFuture')) load('IBMActualPath.Rdata')
-  p     = paths[,1:40] # Use 40 paths in plot
-  pp    = plotPaths(paths=p,actualPath=ibmFuture)
+  paths = computedEnv$paths
+  pc = min(ncol(paths),40)
+  p     = paths[,1:pc] # Use 40 paths in plot or all if less than 40 exist.
+  actualPath = computeActualPath(computedEnv$stockPrices,computedEnv$paths)
+  pp    = plotPaths(paths=p,actualPath=actualPath)
   print(pp)
 }
 ###############################################################
