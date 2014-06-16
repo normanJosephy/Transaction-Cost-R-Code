@@ -34,6 +34,7 @@
 #           The actualPath is ibm[(n-nNewPts):n], where
 #           n = length of ibm time series, and S0=ibm[n-nNewPts]
 
+
 # Copied from dailyPaths.R
 # Modified to accept either zoo object or plain vector
 # Modified 9/26/2011
