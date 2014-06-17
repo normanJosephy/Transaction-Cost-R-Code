@@ -1,16 +1,5 @@
 # createPathsFromIBMPricesUpdatedNoGUI.R  6-14-2014 
 
-# 9/26/2011
-# Dates changed in IBMData() to sept. to sept. data
-# IBMData() modified to save ibm time series in file IBMData.Rdata
-# computeDailyJumps() modified to optionally use all data and
-# input time series from file IBMData.Rdata.
-
-# 7/23/2012 Moved to directory 
-#              c:/Research/Lucy/LucyVitaTCostAlgorithm-july2012-part2/'
-#           Changed ibm data dates to: july 1,2011 to july 1,2012
-#           Copied volatilityOneCompany() from volatility-2010.R
-
 # 7/24/2012 Changed computation of S0. It was last(ibm), which, at 195.58,
 #           would put the option with K=190 in the money.
 #           It currently is set by user, which should be set at the
@@ -21,10 +10,6 @@
 #           length of stock price time series to 252. 
 #           Actual value used comes from constants vector passed in.
 #
-#           Removed directory switch from createPathsAndJumpsFromIBMData().
-
-# 11/9/2013 Modified to collect most recent data
-# switch to c:/Research/Lucy-Oct-Nov2013RComputationsForLatestVersionOfPaper/
 # 6/9/2014 updated ibm data to be stored in 
 #   c:/Research/Lucy-2014/Transaction-Cost-R-Code
 
@@ -34,20 +19,15 @@
 #           The actualPath is ibm[(n-nNewPts):n], where
 #           n = length of ibm time series, and S0=ibm[n-nNewPts]
 
-
-# Copied from dailyPaths.R
-# Modified to accept either zoo object or plain vector
-# Modified 9/26/2011
-# 7/23/2012 Removed 'not using all data' code.
-
 computeDailyJumps = function(priceData) {
     if ('zoo' %in% class(priceData)) {priceData = coredata(priceData)}
     jumps = priceData[-1]/priceData[-length(priceData)]
     invisible(jumps)
     }
 
-# Original code copied from dailyPaths.R and modified
-# nNewPointsOnPath is one less than total prices (S0 appended to front of paths)
+
+# nNewPointsOnPath is one less than total prices 
+# (S0 appended to front of paths)
 # Changed return output to just be paths and not also jumps.
 createDailyPathsFromJumps = function(jumps,S0,nPaths=100,nNewPointsOnPath=6) {
     sampledJumpsVector = sample(jumps,nPaths*nNewPointsOnPath,replace=TRUE)
@@ -66,14 +46,17 @@ createPathsAndJumpsFromIBMData = function() {
     load(fileName)
     actualPathStartingValueAt = length(stockPrices)-nNewPointsOnPath
     S0 = coredata(stockPrices)[actualPathStartingValueAt]
+    myEnv$S0 = S0
+    cat("\n #############\n  Changed initial S0 to ",S0,'in myEnv\n #########\n\n')
+    #
     # Use entire stockPrices time series to construct jump population
     jumps = computeDailyJumps(priceData=stockPrices)
     paths = createDailyPathsFromJumps(jumps=jumps,
         S0=S0,nPaths=nPaths,nNewPointsOnPath=nNewPointsOnPath)
     actualPath = computeActualPath(stockPrices,paths)
-    outputList = list(paths=paths,actualPath=actualPath)
+    outputList = list(paths=paths,actualPath=actualPath,S0=S0)
     packListToEnvironment(outputList,computedEnv)
-    invisible(outputList)
+        invisible(outputList)
     }
 
 # Actual path is testing path, the last nPtsOnNewPaths values of ibm.
@@ -98,13 +81,14 @@ plotPaths = function(paths,actualPath){
   x = 1:nrow(paths)
   dataList = list(actualPath=actualPath)
   yLim = range(c(actualPath,paths))
+  myMain = paste('Simulated',myEnv$stockName,'Stock Price Paths')
   p = xyplot(c(paths) ~ rep(x,ncol(paths)),
              groups=c(col(paths)), 
              type='l',
              lwd=1,
              xlab='Time',
              ylab='Stock price',
-             main='Simulated IBM Stock Price Paths',
+             main=myMain,
              ylim=yLim)
   pp = p + layer(panel.points(x=x,y=actualPath,pch=19,cex=1.3,col='black'),data=dataList)
   invisible(pp)

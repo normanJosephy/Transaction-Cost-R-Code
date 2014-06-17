@@ -48,6 +48,7 @@ testCreateDeltaRutkowskiNew = function() {
   mtext('Bond H',side=2,line=2,outer=FALSE)
   mtext('Time',side=1,line=2,outer=FALSE)
   matplot(1:nrow(delta),delta,type='l',ylab="",xlab="")
+  abline(h=0)
   mtext('Delta',side=2,line=2,outer=FALSE)
   mtext('Time',side=1,line=2,outer=FALSE)
   layout(1)
