@@ -10,6 +10,7 @@ source("createPathsFromIBMPricesUpdatedNoGUI.R")
 source("createDeltaRutkowskiNewNoGUI.R")
 source("rutkowski-2.R")
 source("createRutkowskiContourNewNoGUI.R")
+source("rutkowskiSimulationNoGUI.R")
 
 savemyEnv = function(fileName) {
   fullFileName = paste(myEnv$WD,fileName,sep='/')
@@ -56,7 +57,7 @@ ibmConstantsNew = function() {
    TimeToExpiration = 1       # time to expiration in years
    R           = K/S0         # normalized strike - used in CRR contour computation
   #
-   nPaths = 100        # number of paths constructed 
+   nPaths = 10        # number of paths constructed 
    nNewPointsOnPath = 6
    lambda = 0.01       # unit transaction cost for buying a share of stock.
    mu     = 0.01      # unit transaction cost for selling a share of stock. 
@@ -84,7 +85,7 @@ ibmConstantsNew = function() {
   })
   assign("myEnv",myEnv,envir=.GlobalEnv)
   #
-  set.seed(seed)
+  set.seed(myEnv$seed)
   #
   cat("\n\n Created environment myEnv with run ",myEnv$runNumber, " constants. \n\n")
   assign("computedEnv",computedEnv,envir=.GlobalEnv)

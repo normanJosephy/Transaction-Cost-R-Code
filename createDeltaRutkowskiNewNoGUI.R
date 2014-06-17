@@ -1,9 +1,14 @@
 # createDeltaRutkowskiNewNoGUI.R 6/14/2014
 
 createDeltaRutkowskiNew = function(u,d) {
-  unpackList(myEnv)
-  unpackList(computedEnv)
-  pathMatrix = paths
+#  unpackList(myEnv)
+#  unpackList(computedEnv)
+  pathMatrix = computedEnv$paths
+  lambda = myEnv$lambda
+  mu     = myEnv$mu
+  r      = myEnv$r
+  K      = myEnv$K
+  #
   nPaths = ncol(pathMatrix)
   nTimes = nrow(pathMatrix)
   rNames = paste('time-',0:(nTimes-1),sep='')

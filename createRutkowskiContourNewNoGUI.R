@@ -11,10 +11,21 @@ createRutContour= function() {
   priceBaseRut = computeBasePriceNew(u=u,d=d)
   dLRut        = computeGridPriceNew()
   udMatrix2    = getContourRutkowski(dL=dLRut,oPrice=priceBaseRut)
+  # Choose subset of (u,d) pairs based on nUDPairsToUse
+  nUDPairsToUse = myEnv$nUDPairsToUse
+  nUDPairsRut   = nrow(udMatrix2)
+  rowsToUseRut = unique(round(seq(1,nUDPairsRut,length=nUDPairsToUse)))
+  nUDPairsToUseRut = length(rowsToUseRut)
+  stopifnot(length(rowsToUseRut) > 0)
+  udMatrixRut = udMatrix2[rowsToUseRut,,drop=FALSE]
+  colnames(udMatrixRut) = c('u','d')
   returnList   = list(udBaseRut=udBaseRut,
                   priceBaseRut=priceBaseRut,
                   dLRutkowski=dLRut,
-                  udMatrix2=udMatrix2)
+                  udMatrix2=udMatrix2,
+                  rowsToUseRut=rowsToUseRut,
+                  nUDPairsToUseRut=nUDPairsToUseRut,
+                  udMatrixRut=udMatrixRut)
   packListToEnvironment(myList = returnList,myEnvironment = computedEnv)
   invisible(returnList)}
 
@@ -74,6 +85,8 @@ testCreateRutkowskiContourNew = function() {
   mainT2 = paste('Rutkowski surface plots')
   plotContour(udMatrix2,
               mainTitle=mainT1)
+  cat("\n Rutkowski contour using",myEnv$nUDPairsToUse,"(u,d) pairs\n")
+  plotContour(udMatrixRut,mainTitle="Subset of market contour")
   plotSurface(dLRutkowski,mainTitle=mainT2)
   plotSurface1(dLRutkowski,mainTitle=mainT2)
   cat('\n Rutkowski option price surface plotted')
