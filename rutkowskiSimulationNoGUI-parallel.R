@@ -9,7 +9,17 @@ setup = function() {
  cl = makeCluster(2)
  registerDoParallel(cl) 
 cat('\n Number of parallel workers: ',getDoParWorkers())
-                    }
+    }
+
+##############
+  library(doSNOW)
+  cl = makeCluster(2,type="SOCK")
+  registerDoSNOW(cl)
+  clusterExport(cl,c("createDeltaRutkowskiNew","createTCosts","myEnv","computedEnv"))
+##############
+
+endCluster = function() stopCluster(cl = cl)
+
 #
 # source('ibmConstantsNew.R')
 # 
