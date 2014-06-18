@@ -11,20 +11,20 @@ source("createDeltaRutkowskiNewNoGUI.R")
 source("rutkowski-2.R")
 source("createRutkowskiContourNewNoGUI.R")
 source("rutkowskiSimulationNoGUI.R")
+source("dataPlots.R")
+source("lmplot.R")
+source("dataProcessingDeltaRutOnly-1.R")
 
-savemyEnv = function(fileName) {
-  fullFileName = paste(myEnv$WD,fileName,sep='/')
-  save(myEnv,file=fullFileName,envir=.GlobalEnv)
-  cat("\n Saved run ",myEnv$runNumber," in file ",fullFileName,"\n\n")
+loadEnv = function() {
+  envFiles = choose.files(multi=TRUE,filters=Filters['RData',])
+  nFiles = length(envFiles)
+  stopifnot(length(nFiles > 0))
+  for (i in 1:nFiles) {
+    load(envFiles[i],envir=.GlobalEnv)
+    cat("\n Loaded ",envFiles[i],'\n')
+  }
 }
 
-loadmyEnv = function(fileName) {
-  baseDir = getwd()
-  dataDir = paste(baseDir,'data',sep='/')
-  fullFileName = paste(dataDir,fileName,sep='/')
-  load(file = fullFileName,envir = .GlobalEnv)
-  cat("\n Loaded run ",myEnv$runNumber, ' from file \n ',fullFileName,'\n\n')
-}
 
 tests = function() {
   cat("\n Storing constants in environment myEnv\n")
@@ -44,9 +44,10 @@ ibmConstantsNew = function() {
   myEnv = new.env()
   computedEnv = new.env()
   with(myEnv,{
+   runNumber = 998
+   stockName='F'
    baseDir = getwd()
-   WD = paste(baseDir,'data',sep='/')
-   runNumber = 999
+   WD = paste(baseDir,'data',sep='/')   
   # Option data
    oType      = 'call'
    nDaysInYear = 252
@@ -55,9 +56,13 @@ ibmConstantsNew = function() {
    optionPrice = 1.50         # option price
    nFlips      = 6            # number of rebalancing times.
    TimeToExpiration = 1       # time to expiration in years
-   R           = K/S0         # normalized strike - used in CRR contour computation
   #
-   nPaths = 10        # number of paths constructed 
+  # R           = K/S0         # normalized strike - used in CRR contour computation
+  # S0 assigned in createPathsFromIBMPricesUpdatedNoGUI()
+  # R = K/S0 assigned to myEnv in createPathsFromIBMPricesUpdatedNoGUI()
+  # The contour function no longer uses R.
+  #
+   nPaths = 50        # number of paths constructed 
    nNewPointsOnPath = 6
    lambda = 0.01       # unit transaction cost for buying a share of stock.
    mu     = 0.01      # unit transaction cost for selling a share of stock. 
@@ -66,8 +71,8 @@ ibmConstantsNew = function() {
    rAnnual = 0.00
    r      = rAnnual/nFlips # single period risk-free interest rate
    rho    = 1 + r        # risk-free single period accumulation factor
-   nPtsD  = 100          # number of u values used in computing (u,d,c) surface.
-   nPtsU  = 100          # number of d values used in computing (u,d,c) surface.
+   nPtsD  = 50           # number of u values used in computing (u,d,c) surface.
+   nPtsU  = 50           # number of d values used in computing (u,d,c) surface.
    seed   = 12345        # seed set in rutkowskiSimulation()
    drift  = 0.00  
    sigma  = 0.10
@@ -75,9 +80,7 @@ ibmConstantsNew = function() {
   #
    uStart=1.01; uEnd=1.20
    dStart=0.80; dEnd=0.99
-   nPtsU=50; nPtsD=50
-#   stockName = 'IBM'
-   stockName='F'
+  #
    stockPriceFileName = paste(stockName,'Data2014.RData',sep='')
    FN = paste(WD,stockPriceFileName,sep='/')  
    from = '2013-06-01'
@@ -87,7 +90,8 @@ ibmConstantsNew = function() {
   #
   set.seed(myEnv$seed)
   #
-  cat("\n\n Created environment myEnv with run number",myEnv$runNumber, "constants. \n\n")
+  cat("\n\n Set seed to ",myEnv$seed)
+  cat("\n Created environment myEnv with run number",myEnv$runNumber, "constants. \n")
   assign("computedEnv",computedEnv,envir=.GlobalEnv)
   cat(" Created environment computedEnv to store computed value\n")
   # Load stock price time series

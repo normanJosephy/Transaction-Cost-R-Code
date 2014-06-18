@@ -1,8 +1,8 @@
 # dataPlots.R
 
 dataPlots = function() {
-  unpackList(myEnv)
-  unpackList(computedEnv)
+  if (! exists('nPaths')) unpackList(myEnv)
+  if (! exists('costBigRut')) unpackList(computedEnv)
   #
   # Plot transaction cost for each (u,d) pair: summed over time, averaged over paths
   # Repeat for delta
@@ -34,6 +34,10 @@ dataPlots = function() {
   p     = paths[,1:pc] # Use 40 paths in plot or all if less than 40 exist.
   pp    = plotPaths(paths=p,actualPath=actualPath)
   print(pp)
+  #
+  # Plot Delta density functions
+  #
+  processRutDelta()
 }
 
 

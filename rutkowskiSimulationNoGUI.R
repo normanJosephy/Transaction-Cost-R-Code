@@ -1,33 +1,36 @@
 # rutkowskiSimulationNoGUI.R
 
-# source('ibmConstantsNew.R')
+# TO RUN SIMULATION:
+#   1. Edit contents of ibmConstantsNew() in file ibmConstantsNew.R 
+#   2. Source ibmConstantsNew.R:  source('ibmConstantsNew.R')
+#   3. Run rSimulation()
 
 rSimulation = function() {
   #
   # Step 1 Record simulation constants in environment myEnv
   #
-  cat("\n Step 1\n")
+  cat("\n Step 1\n Record simulation constants in environment myEnv\n")
   flush.console()
   #
   ibmConstantsNew()
   #
   # Step 2 Construct stock price paths
   #
-  cat("\n Step 2\n")
+  cat("\n Step 2\n Construct stock price paths\n")
   flush.console()
   #
   createPathsAndJumpsFromIBMData()
   #
   # Step 3 Construct market contour
   #
-  cat("\n Step 3\n")
+  cat("\n Step 3\n Construct market contour\n")
   flush.console()
   #
   createRutContour()
   #
   # Step 4 Load constants from myEnv and computedEnv into working directory
   #
-  cat("\n Step 4\n")
+  cat("\n Step 4\n Load constants from myEnv and computedEnv into working directory\n")
   flush.console()
   #
   nFlips = myEnv$nFlips
@@ -45,7 +48,7 @@ rSimulation = function() {
   #
   # Step 5 Construct empty containers for simulation data
   #
-  cat("\n Step 5\n")
+  cat("\n Step 5\n Construct empty containers for simulation data\n")
   flush.console()
   #
   rowN = paste('time-',0:nFlips,sep='')
@@ -67,13 +70,14 @@ rSimulation = function() {
   #
   # Step 6 Loop over contour pairs
   #
-  cat("\n Step 6\n")
+  cat("\n Step 6\n Loop over contour pairs\n\n")
   flush.console()
   #
   for (iUDPair in 1:nUDPairsToUseRut) {  # loop over ud pairs
     ud = udMatrixRut[iUDPair,]
     u = ud[1]
-    d = ud[2]  
+    d = ud[2] 
+    cat("\n u,d pair: ",iUDPair," out of ",nUDPairsToUseRut,'\n')
     rutOut   = createDeltaRutkowskiNew(u,d)
     deltaBigRut[,,iUDPair] = rutOut$delta
     GMatrix  = rutOut$GMatrix    
@@ -92,7 +96,7 @@ rSimulation = function() {
   #
   # Step 7 Store output in computedEnv
   #
-  cat("\n Step 7\n")
+  cat("\n Step 7\n Store output in computedEnv\n")
   flush.console()
   #
   computedEnv$deltaBigRut = deltaBigRut
@@ -101,7 +105,7 @@ rSimulation = function() {
   #
   # Step 8 Save myEnv and computedEnv to data files
   #
-  cat("\n Step 8\n")
+  cat("\n Step 8\n Save myEnv and computedEnv to data files\n")
   flush.console()
   #
   fileName = paste(myEnv$WD,'/',paste(myEnv$stockName,myEnv$runNumber,sep=''),sep='')
@@ -110,9 +114,16 @@ rSimulation = function() {
   save(myEnv,     file = myEnvFileName,     envir = .GlobalEnv)
   save(computedEnv,file=computedEnvFileName,envir = .GlobalEnv)
   #
-  # Step 9 Declare simulation done
+  # Step 9 Draw plots
   #
-  cat("\n Step 9\n")
+  cat("\n Step 9\n Draw plots\n")
+  flush.console()
+  #
+  dataPlots()
+  #
+  # Step 10 Declare simulation done
+  #
+  cat("\n Step 10\n Declare simulation done\n")
   flush.console()
   #
   cat("\n\n Run",myEnv$runNumber,"COMPLETED")

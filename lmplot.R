@@ -76,7 +76,10 @@ lPlot = function(xL,yL,legendText='',...,printIt=TRUE) {
   xRange  = range(xL)
   yRange  = range(yL)
   nCurves = length(yL)
-  palette(rainbow(nCurves))
+  if (nCurves == 1) {
+    palette()
+  } else {palette(rainbow(nCurves))}
+  
   # Note that each curve has a different number of points.
   myPanel = function(xDummy,yDummy) {
     for (i in 1:nCurves){

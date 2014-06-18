@@ -46,8 +46,11 @@ createPathsAndJumpsFromIBMData = function() {
     load(fileName)
     actualPathStartingValueAt = length(stockPrices)-nNewPointsOnPath
     S0 = coredata(stockPrices)[actualPathStartingValueAt]
+#    R = myEnv$K/S0
     myEnv$S0 = S0
-    cat("\n #############\n  Changed initial S0 to ",S0,'in myEnv\n #########\n\n')
+#    myEnv$R  = R
+    cat("\n #############\n  Changed initial S0 to ",S0,'in myEnv\n ')
+    cat(" ############ Assigned R=myEnv$K/S0 to myEnv$R\n ##############\n\n")
     #
     # Use entire stockPrices time series to construct jump population
     jumps = computeDailyJumps(priceData=stockPrices)

@@ -67,8 +67,6 @@ computeGridPriceNew = function(){
 }
 
 getContourRutkowski = function(dL,oPrice) {
- #  ans = getWinVal(scope="L")
- #  unpackList(ans,scope="L")
   # NO SCALING IN COMPUTATION OF c.
   cLines = contourLines(dL$u,dL$d,dL$c,levels=oPrice)
   if (length(cLines) == 0) {stop('No Rutkowski contour. Exiting program')
