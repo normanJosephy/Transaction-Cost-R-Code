@@ -7,14 +7,12 @@ require(doParallel) # Loads parallel, iterators and foreach
 
 setup = function() {
  cl = makeCluster(2)
- registerDoParallel(cl) }
-
+ registerDoParallel(cl) 
+cat('\n Number of parallel workers: ',getDoParWorkers())
+                    }
 #
 # source('ibmConstantsNew.R')
 # 
-testTime = function() {
-  system.time({
-  x = foreach(i=1:10000,.combine=rbind) %dopar% {c(first=i,second=i^2)}})
 
 # TO RUN SIMULATION:
 #   1. Edit contents of ibmConstantsNew() in file ibmConstantsNew.R 
@@ -89,7 +87,7 @@ rSimulationParallel = function() {
   cat("\n Step 6\n Loop over contour pairs\n\n")
   flush.console()
   #
-  answer = foreach(iUDPair = 1:nUDPairsToUseRut,.combine=rbind) %do% {  # loop over ud pairs
+  answer = foreach(iUDPair = 1:nUDPairsToUseRut,.combine=rbind) %dopar% {  # loop over ud pairs
     ud = udMatrixRut[iUDPair,]
     u = ud[1]
     d = ud[2] 
