@@ -1,8 +1,8 @@
 # dataProcessingDeltaRutOnly-1.R  6/18/2014
 
-require(lattice)
+# require(lattice)
 
-source('lmplot.R')
+# source('lmplot.R')
 
 dSum = function(x,r) {
   sum(x/(1+r)^seq(1,length(x)))
@@ -49,7 +49,7 @@ processRutDelta = function(printIt=FALSE) {
   # Average summed deltas to get average Delta, which we maximize.
   #
   avgTotalDeltaRut     = apply(totalDeltaRut,2,mean)
-  avgTotalDeltaRutDisc = apply(totalDeltaRutDiscounted,2,mean)
+  # avgTotalDeltaRutDisc = apply(totalDeltaRutDiscounted,2,mean)
   
   aList = list()
   aList[[1]] = avgTotalDeltaRut

@@ -45,7 +45,7 @@ ibmConstantsNew = function() {
   myEnv = new.env()
   computedEnv = new.env()
   with(myEnv,{
-   runNumber = 998
+   runNumber = 997
    stockName='F'
    baseDir = getwd()
    WD = paste(baseDir,'data',sep='/')   
@@ -63,7 +63,7 @@ ibmConstantsNew = function() {
   # R = K/S0 assigned to myEnv in createPathsFromIBMPricesUpdatedNoGUI()
   # The contour function no longer uses R.
   #
-   nPaths = 50        # number of paths constructed 
+   nPaths = 100        # number of paths constructed 
    nNewPointsOnPath = 6
    lambda = 0.01       # unit transaction cost for buying a share of stock.
    mu     = 0.01      # unit transaction cost for selling a share of stock. 

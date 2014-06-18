@@ -1,22 +1,7 @@
 # parallel-rutkowskiOptionPriceAndSigma2.R  6/19/2012
 
-# source('rutkowski-2.R')
-
-# 6/21/2012  Added unname to computeBaseUD
-
-# 67/21/2012 Added print statement in computeGridPrice() outer loop for u.
-
-# Uses the following functions from rutkowski-2.R:
-# prob(), stock(), computeF1F2(), optionPriceRut()
-
-# h = T/n, where T=time to expiration in years, n=number of flips per year
-# sigma = volatility of underlying stock asset
-
-# Changed optionPrice() calls to optionPriceRut() calls 
 
 # 5/30/2014 Added parallel processing for home computer 2 cores
-
-
 
 
 setup = function() {
@@ -25,7 +10,7 @@ setup = function() {
   require(foreach)  
   source('rutkowski-2.R')
   registerDoParallel(cores=2)
-  moreConstantsInWorkspace()
+
 }
 
 test_parallel_computeGridPrice = function() {
