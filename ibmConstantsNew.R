@@ -14,6 +14,7 @@ source("rutkowskiSimulationNoGUI.R")
 source("dataPlots.R")
 source("lmplot.R")
 source("dataProcessingDeltaRutOnly-1.R")
+source("testCreateFunctionsNew.R")
 
 loadEnv = function() {
   envFiles = choose.files(multi=TRUE,filters=Filters['RData',])
