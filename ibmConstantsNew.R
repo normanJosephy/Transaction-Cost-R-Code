@@ -87,9 +87,9 @@ ibmConstantsNew = function() {
   #
   set.seed(myEnv$seed)
   #
-  cat("\n\n Created environment myEnv with run ",myEnv$runNumber, " constants. \n\n")
+  cat("\n\n Created environment myEnv with run number",myEnv$runNumber, "constants. \n\n")
   assign("computedEnv",computedEnv,envir=.GlobalEnv)
-  cat(" Created environment computedEnv to store computed value\n\n")
+  cat(" Created environment computedEnv to store computed value\n")
   # Load stock price time series
   IBMDataFromStoredFile()
   invisible(myEnv)}
@@ -135,7 +135,7 @@ testEnvironment = function() {
   print(" computedEnv contents")
   print(ls(name = computedEnv))
   cat("\n *******************************************")
-  cat("\n\n Run ",myEnv$runNumber, " stored in myEnv\n\n")
+  cat("\n\n Run number ",myEnv$runNumber, " stored in myEnv\n\n")
 }
 #########################################################
 # Copied from PBSmodelling package.

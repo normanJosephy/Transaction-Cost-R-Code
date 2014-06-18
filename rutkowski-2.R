@@ -192,11 +192,7 @@ rutkowskiDelta = function(path,H,G,lambda=0.2,mu=1/6,r=0) {
 
 # del is delta with NA appended at time 0.
 createDeltaRutkowski = function(pathMatrix,lambda,mu,r,u,d,K) {
-#   if (is.null(pathMatrix)) {
-#     pathMatrix = cbind(c(100,120,96),
-#                        c(100,110,107.8),
-#                        c(100,140,105))
-#   } 
+  #
   nPaths = ncol(pathMatrix)
   nTimes = nrow(pathMatrix)
   rNames = paste('time-',0:(nTimes-1),sep='')
@@ -225,6 +221,22 @@ createDeltaRutkowski = function(pathMatrix,lambda,mu,r,u,d,K) {
   invisible(outputList)
 }
 
+# From residualsCRR.R
+# All costs will be positive.
+createTCosts = function(sPath,portShareQt,lambda,mu,verbose=FALSE){
+  # Prepend 0 to share quantity, to compute setup transaction cost 
+  portShareQtWithZero = c(0,portShareQt)
+  changeShareQt       = diff(portShareQtWithZero)
+  factor = lambda * (changeShareQt > 0) - mu * (changeShareQt <= 0)
+  tCost  = changeShareQt * sPath * factor
+  # Prepare data for printing
+  if (verbose) {
+    output = cbind(sPath,portShareQt,factor,tCost)
+    print(round(output,digits=4),digits=4)
+  }
+  invisible(tCost)
+}
+
 # All costs will be positive.
 # createTCosts() is in residualCRR.R
 # GMatrix from createDeltaRutkowski()
@@ -241,6 +253,7 @@ tCostRutkowski = function(pathMatrix,GMatrix,lambda,mu){
   }   # end ipath loop
   invisible(rutCosts)
 }
+
 
 testTCostAndDeltaRutkowski = function() {
   pathMatrix = cbind(c(100,120,96),

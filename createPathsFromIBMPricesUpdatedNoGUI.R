@@ -68,40 +68,6 @@ computeActualPath = function(stockPrices,paths){
   actualPath = coredata(stockPrices[actualPathIndexSet])
 }
 
-testCreatePathsAndJumpsFromIBMData = function() {
-  answer = createPathsAndJumpsFromIBMData()
-  paths = answer$paths
-  actualPath = answer$actualPath
-  pp = plotPaths(paths,actualPath)
-  print(pp)
-}
-
-# plot simulated paths using lattice
-plotPaths = function(paths,actualPath){
-  x = 1:nrow(paths)
-  dataList = list(actualPath=actualPath)
-  yLim = range(c(actualPath,paths))
-  myMain = paste('Simulated',myEnv$stockName,'Stock Price Paths')
-  p = xyplot(c(paths) ~ rep(x,ncol(paths)),
-             groups=c(col(paths)), 
-             type='l',
-             lwd=1,
-             xlab='Time',
-             ylab='Stock price',
-             main=myMain,
-             ylim=yLim)
-  pp = p + layer(panel.points(x=x,y=actualPath,pch=19,cex=1.3,col='black'),data=dataList)
-  invisible(pp)
-}
-
-testPlotUsingLattice = function() {
-  paths = computedEnv$paths
-  pc = min(ncol(paths),40)
-  p     = paths[,1:pc] # Use 40 paths in plot or all if less than 40 exist.
-  actualPath = computeActualPath(computedEnv$stockPrices,computedEnv$paths)
-  pp    = plotPaths(paths=p,actualPath=actualPath)
-  print(pp)
-}
 ###############################################################
 # volatilityOneCompany assumes number of days in year as 252.
 # Changed name of stock price data to coData; it was coDataOneYear.

@@ -95,9 +95,9 @@ rSimulation = function() {
   cat("\n Step 7\n")
   flush.console()
   #
-  computed$deltaBigRut = deltaBigRut
-  computed$costBigRut  = costBigRut
-  compute$portBigRut   = portBigRut
+  computedEnv$deltaBigRut = deltaBigRut
+  computedEnv$costBigRut  = costBigRut
+  computedEnv$portBigRut  = portBigRut
   #
   # Step 8 Save myEnv and computedEnv to data files
   #
@@ -116,6 +116,6 @@ rSimulation = function() {
   flush.console()
   #
   cat("\n\n Run",myEnv$runNumber,"COMPLETED")
-  cat("\n\n Data stored in files\n1.",myEnvFileName,'\n',computedEnvFileName,'\n\n')
+  cat("\n\n Data stored in files\n",myEnvFileName,'\n',computedEnvFileName,'\n\n')
   invisible(NULL)
 }
