@@ -1,4 +1,4 @@
-#  ibmConstantsNew.R
+#  ibmConstantsNew.R 6/16/2014
 
 # This file replaces inputParametersNoGUI.R
 
@@ -81,7 +81,7 @@ ibmConstantsNew = function() {
   #
   uStart=1.01; uEnd=1.20
   dStart=0.80; dEnd=0.99
-  nPtsU=50; nPtsD=50
+  nPtsU=100; nPtsD=100
   })
   assign("myEnv",myEnv,envir=.GlobalEnv)
   cat("\n\n Created environment myEnv with run ",myEnv$runNumber, " constants. \n\n")
