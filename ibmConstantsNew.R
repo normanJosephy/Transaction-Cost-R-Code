@@ -1,4 +1,4 @@
-#  ibmConstantsNew.R
+#  ibmConstantsNew.R 6/16/2014
 
 # This file replaces inputParametersNoGUI.R
 
@@ -48,7 +48,11 @@ ibmConstantsNew = function() {
    runNumber = 997
    stockName='F'
    baseDir = getwd()
-   WD = paste(baseDir,'data',sep='/')   
+   WD = paste(baseDir,'data',sep='/')  
+   stockPriceFileName = paste(stockName,'Data2014.RData',sep='')
+   FN = paste(WD,stockPriceFileName,sep='/')  
+   from = '2013-06-01'
+   to   = '2014-06-01'
   # Option data
    oType      = 'call'
    nDaysInYear = 252
@@ -81,11 +85,6 @@ ibmConstantsNew = function() {
   #
    uStart=1.01; uEnd=1.20
    dStart=0.80; dEnd=0.99
-  #
-   stockPriceFileName = paste(stockName,'Data2014.RData',sep='')
-   FN = paste(WD,stockPriceFileName,sep='/')  
-   from = '2013-06-01'
-   to   = '2014-06-01'
   })
   assign("myEnv",myEnv,envir=.GlobalEnv)
   #

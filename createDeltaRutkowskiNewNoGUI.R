@@ -1,4 +1,4 @@
-# createDeltaRutkowskiNewNoGUI.R 6/14/2014
+# createDeltaRutkowskiNewNoGUI.R 6/16/2014
 
 createDeltaRutkowskiNew = function(u,d) {
 #  unpackList(myEnv)

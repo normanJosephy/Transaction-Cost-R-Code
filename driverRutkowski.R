@@ -1,3 +1,5 @@
+# driverRutkowski.R 
+
 setup = function() {
   source(file='rutkowski-2.R')
   source(file='rutkowskiOptionPriceAndSigma2.R')

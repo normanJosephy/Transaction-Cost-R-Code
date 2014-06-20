@@ -1,4 +1,4 @@
-# createRutkowskiContourNewNoGUI.R
+# createRutkowskiContourNewNoGUI.R  6/16/2014
 
 # source('rutkowski-2.R')
 

@@ -1,4 +1,4 @@
-# createPathsFromIBMPricesUpdatedNoGUI.R  6-14-2014 
+# createPathsFromIBMPricesUpdatedNoGUI.R  6-16-2014 
 
 # 7/24/2012 Changed computation of S0. It was last(ibm), which, at 195.58,
 #           would put the option with K=190 in the money.
