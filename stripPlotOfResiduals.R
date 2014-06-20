@@ -49,3 +49,4 @@ improvementPerPath = function(dataT) {
   improvementStats = summary(perPathImprovement)
   return(improvementStats)
 }
+

@@ -11,10 +11,21 @@ createRutContour= function() {
   priceBaseRut = computeBasePriceNew(u=u,d=d)
   dLRut        = computeGridPriceNew()
   udMatrix2    = getContourRutkowski(dL=dLRut,oPrice=priceBaseRut)
+  # Choose subset of (u,d) pairs based on nUDPairsToUse
+  nUDPairsToUse = myEnv$nUDPairsToUse
+  nUDPairsRut   = nrow(udMatrix2)
+  rowsToUseRut = unique(round(seq(1,nUDPairsRut,length=nUDPairsToUse)))
+  nUDPairsToUseRut = length(rowsToUseRut)
+  stopifnot(length(rowsToUseRut) > 0)
+  udMatrixRut = udMatrix2[rowsToUseRut,,drop=FALSE]
+  colnames(udMatrixRut) = c('u','d')
   returnList   = list(udBaseRut=udBaseRut,
                   priceBaseRut=priceBaseRut,
                   dLRutkowski=dLRut,
-                  udMatrix2=udMatrix2)
+                  udMatrix2=udMatrix2,
+                  rowsToUseRut=rowsToUseRut,
+                  nUDPairsToUseRut=nUDPairsToUseRut,
+                  udMatrixRut=udMatrixRut)
   packListToEnvironment(myList = returnList,myEnvironment = computedEnv)
   invisible(returnList)}
 
@@ -56,49 +67,8 @@ computeGridPriceNew = function(){
 }
 
 getContourRutkowski = function(dL,oPrice) {
- #  ans = getWinVal(scope="L")
- #  unpackList(ans,scope="L")
   # NO SCALING IN COMPUTATION OF c.
   cLines = contourLines(dL$u,dL$d,dL$c,levels=oPrice)
   if (length(cLines) == 0) {stop('No Rutkowski contour. Exiting program')
   } else {return(cbind(u=cLines[[1]]$x,d=cLines[[1]]$y))}
 }
-
-testCreateRutkowskiContourNew = function() {
-  answer = createRutContour()
-  unpackList(answer)
-  cat('\n Rutkowski base price',priceBaseRut,'\n')
-  cat('\n Rutkowski contour plotted from',nrow(udMatrix2),'(u,d) pairs\n')
-  optionPriceRounded = round(priceBaseRut,digits=3)
-  mainT1 = paste('Rutkowski contour for option price', optionPriceRounded)
-  mainT2 = paste('Rutkowski surface plots')
-  plotContour(udMatrix2,
-              mainTitle=mainT1)
-  plotSurface(dLRutkowski,mainTitle=mainT2)
-  plotSurface1(dLRutkowski,mainTitle=mainT2)
-  cat('\n Rutkowski option price surface plotted')
-  flush.console()
-}
-
-# cL returned by getContour()
-plotContour = function(cL,mainTitle=NULL) {
-  plot(cL[,2],cL[,1],type='l',xlab='d',ylab='u',main=mainTitle)
-}
-
-# dL returned by cSurface()
-plotSurface1 = function(dL,mainTitle=NULL) {
-  persp(dL$u,dL$d,dL$c,
-        xlab="u",ylab="d",zlab="c",
-        shade = 0.15, border = TRUE,scale=TRUE,axes=TRUE,
-        ticktyp="detailed",nticks=2,main=mainTitle)
-  return(NULL)
-}
-
-plotSurface = function(dL,mainTitle=NULL) {
-  w = wireframe(dL$c,row.values=dL$u,column.values=dL$d,
-            scales=list(arrows=FALSE),main=mainTitle,
-            xlab='u',ylab='d',zlab='c',
-            drape=TRUE,colorkey=TRUE)
-  print(w)
-}
-

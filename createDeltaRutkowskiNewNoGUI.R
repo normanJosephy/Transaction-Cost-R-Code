@@ -1,9 +1,14 @@
 # createDeltaRutkowskiNewNoGUI.R 6/16/2014
 
 createDeltaRutkowskiNew = function(u,d) {
-  unpackList(myEnv)
-  unpackList(computedEnv)
-  pathMatrix = paths
+#  unpackList(myEnv)
+#  unpackList(computedEnv)
+  pathMatrix = computedEnv$paths
+  lambda = myEnv$lambda
+  mu     = myEnv$mu
+  r      = myEnv$r
+  K      = myEnv$K
+  #
   nPaths = ncol(pathMatrix)
   nTimes = nrow(pathMatrix)
   rNames = paste('time-',0:(nTimes-1),sep='')
@@ -39,13 +44,17 @@ testCreateDeltaRutkowskiNew = function() {
   d     = ud['d']
   outputList=createDeltaRutkowskiNew(u,d)
   unpackList(outputList)
-  layout(c(1,2))
-  par(mar=c(4,3,2,1))
+  #layout(c(1,3))
+  par(mar=c(4,3,2,1),mfrow=c(3,1))
   matplot(1:nrow(GMatrix),GMatrix,type='l',ylab="", xlab="")
   mtext('Stock G',side=2,line=2,outer=FALSE)
   mtext('Time',side=1,line=2,outer=FALSE)
   matplot(1:nrow(HMatrix),HMatrix,type='l',ylab="", xlab="")
   mtext('Bond H',side=2,line=2,outer=FALSE)
+  mtext('Time',side=1,line=2,outer=FALSE)
+  matplot(1:nrow(delta),delta,type='l',ylab="",xlab="")
+  abline(h=0)
+  mtext('Delta',side=2,line=2,outer=FALSE)
   mtext('Time',side=1,line=2,outer=FALSE)
   layout(1)
   #  print(outputList)
