@@ -139,7 +139,9 @@ rSimulationParallel = function() {
   # Plot netDelta
   #
   netDelta = answer[,2] - answer[,3]
-  plot(1:nUDPairsToUseRut,netDelta,type='l',main="Net Delta vs. (u,d) pair")
+  plot(1:nUDPairsToUseRut,netDelta,
+       type='l',xlab="(u,d)",ylab=expression(paste("Net ",Delta)),
+       main="Net Delta vs. (u,d) pair")
   maxLoc = which.max(netDelta)
   udMax  = udMatrixRut[maxLoc,]
   uMax   = round(ud[1],digits=3)
