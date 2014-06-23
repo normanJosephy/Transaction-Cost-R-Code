@@ -1,35 +1,23 @@
-# rutkowskiSimulationNoGUI-parallel.R
+# rutkowskiSimulationMCparallel.R
 
-# require(parallel)
-require(doParallel) # Loads parallel, iterators and foreach
-# require(foreach)  
-#registerDoParallel(cores=2)
-
-setup = function() {
- cl = makeCluster(2)
- registerDoParallel(cl) 
-cat('\n Number of parallel workers: ',getDoParWorkers())
-    }
-
-endCluster = function() stopCluster(cl = cl)
-
-#
-# source('ibmConstantsNew.R')
-# 
+require(parallel)
 
 # TO RUN SIMULATION:
-#   1. Edit contents of ibmConstantsNew() in file ibmConstantsNew.R 
-#   2. Source ibmConstantsNew.R:  source('ibmConstantsNew.R')
-#   3. Run rSimulationParallel()
+#   1. Edit contents of ibmConstantsNew1() in file ibmConstantsNew.R 
+#   2. Source ibmConstantsNew-1.R:  source('ibmConstantsNew-1.R')
+#   3. Run ibmConstantsNew1()
+#   4. Source rutkowskiSimulationMCparallel.R (this file)
+#   5. Run rSimulationParallel2()
+#      system.time(rSimulationParallel2())
 
-rSimulationParallel = function() {
+rSimulationParallel2 = function() {
   #
   # Step 1 Record simulation constants in environment myEnv
   #
   cat("\n Step 1\n Record simulation constants in environment myEnv\n")
   flush.console()
   #
-  ibmConstantsNew()
+  ibmConstantsNew1()
   #
   # Step 2 Construct stock price paths
   #
@@ -75,56 +63,72 @@ rSimulationParallel = function() {
   thdN     = paste('u:',uvector,' d:',dvector,sep='')
   dimN     = list(rowN,colN,thdN)
   dimV     = c(nFlips+1,nPaths,nUDPairsToUseRut)
-#  dimD     = c(nFlips,nPaths,nUDPairsToUseRut)
-#  dimD1    = c(nFlips+1,2,nPaths,nUDPairsToUseRut)
-#  colN1    = c('stock $','bond $')
-#  rowN1    = paste('time-',1:nFlips,sep='')
-#  dimN1    = list(rowN1,colN,thdN)
-#  dimN2    = list(rowN,colN1,colN,thdN)
+  dimD     = c(nFlips,nPaths,nUDPairsToUseRut)
+  dimD1    = c(nFlips+1,2,nPaths,nUDPairsToUseRut)
+  colN1    = c('stock $','bond $')
+  rowN1    = paste('time-',1:nFlips,sep='')
+  dimN1    = list(rowN1,colN,thdN)
+  dimN2    = list(rowN,colN1,colN,thdN)
   costBigRut  = array(data=NA,dim=dimV,dimnames=dimN)
-#  deltaBigRut = array(data=NA,dim=dimD,dimnames=dimN1)
-#  portBigRut  = array(data=NA,dim=dimD1,dimnames=dimN2)
+  deltaBigRut = array(data=NA,dim=dimD,dimnames=dimN1)
+  portBigRut  = array(data=NA,dim=dimD1,dimnames=dimN2)
   #
   # Step 6 Loop over contour pairs
   #
   cat("\n Step 6\n Loop over contour pairs\n\n")
   flush.console()
   #
-  answer = foreach(iUDPair = 1:nUDPairsToUseRut,.combine=rbind) %dopar% {  # loop over ud pairs
-    ud = udMatrixRut[iUDPair,]
+  # clusterExport(cl=cl,varlist=varToExport)    
+#  answer = foreach(iUDPair = 1:nUDPairsToUseRut,.combine=rbind) %dopar% {  # loop over ud pairs
+  contourLoop = function(iUDPair) {
+    ud = computedEnv$udMatrixRut[iUDPair,]
     u = ud[1]
     d = ud[2] 
 #    cat("\n u,d pair: ",iUDPair," out of ",nUDPairsToUseRut,'\n')
     rutOut   = createDeltaRutkowskiNew(u,d)
-#    deltaBigRut[,,iUDPair] = rutOut$delta
+    computedEnv$deltaBigRut[,,iUDPair] = rutOut$delta
     ## Computing average total delta
     totalDelta = apply(X = rutOut$delta,MARGIN = 2,FUN = sum)
     avgTotalDelta = mean(totalDelta)
     #
-#    GMatrix  = rutOut$GMatrix    
-#    HMatrix  = rutOut$HMatrix 
+    GMatrix  = rutOut$GMatrix    
+    HMatrix  = rutOut$HMatrix 
     #
     for (iPath in 1:nPaths) {
       path     = pathMatrix[,iPath]
       G        = rutOut$GMatrix [,iPath]
       shareQt  = G/path
       costRut  = createTCosts(path,shareQt,lambda,mu)
-      costBigRut[,iPath,iUDPair]   = costRut
-#      portBigRut[,1,iPath,iUDPair] = GMatrix[,iPath]
-#      portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
+      computedEnv$costBigRut[,iPath,iUDPair]   = costRut
+      computedEnv$portBigRut[,1,iPath,iUDPair] = GMatrix[,iPath]
+      computedEnv$portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
     }  # end iPath loop
     ### Computing average total cost
     totalCost = apply(X = costBigRut[,,iUDPair],2,sum)
     avgTotalCost = mean(totalCost)
     ###
     # result is iUDPair, avgTotalDelta, avgTotalCost rbind-ed by foreach loop
+#     .GlobalEnv$computedEnv$deltaBigRut = deltaBigRut
+#     .GlobalEnv$computedEnv$costBigRut  = costBigRut
+#     .GlobalEnv$computedEnv$portBigRut  = portBigRut
     result = c(iUDPair=iUDPair,avgTotalDelta=avgTotalDelta,avgTotalCost=avgTotalCost)
-  }  #end iUDPair loop 
+  }  #end iUDPair contourloop function
+  #############
+  answerList = mclapply(1:nUDPairsToUseRut,contourLoop,mc.cores=6)
+  #############
+  answer = matrix(NA,nrow=nUDPairsToUseRut,ncol=3)
+  for (i in 1:nUDPairsToUseRut) answer[i,] = answerList[[i]]
+  ######################
+  browser()
+  return(NULL)
+  ######################
   #
   # Plot netDelta
   #
   netDelta = answer[,2] - answer[,3]
-  plot(1:nUDPairsToUseRut,netDelta,type='l',main="Net Delta vs. (u,d) pair")
+  plot(1:nUDPairsToUseRut,netDelta,
+       type='l',xlab="(u,d)",ylab=expression(paste("Net ",Delta)),
+       main="Net Delta vs. (u,d) pair")
   maxLoc = which.max(netDelta)
   udMax  = udMatrixRut[maxLoc,]
   uMax   = round(udMax[1],digits=3)
@@ -135,16 +139,14 @@ rSimulationParallel = function() {
   ###############
   #  STOP COMPUTATION AT THIS POINT
   #  NO DATA SAVED IN LOOP OTHER THAN THE result TUPLE.
-  return(answer)
-  #
+  ###  return(answer)
+  ###
   # Step 7 Store output in computedEnv
   #
   cat("\n Step 7\n Store output in computedEnv\n")
   flush.console()
   #
-  computedEnv$deltaBigRut = deltaBigRut
-  computedEnv$costBigRut  = costBigRut
-  computedEnv$portBigRut  = portBigRut
+  #################################################
   #
   # Step 8 Save myEnv and computedEnv to data files
   #
@@ -173,3 +175,36 @@ rSimulationParallel = function() {
   cat("\n\n Data stored in files\n",myEnvFileName,'\n',computedEnvFileName,'\n\n')
   invisible(NULL)
 }
+
+
+contourLoopCode = function(iUDPair) {
+  ud = udMatrixRut[iUDPair,]
+  u = ud[1]
+  d = ud[2] 
+  #    cat("\n u,d pair: ",iUDPair," out of ",nUDPairsToUseRut,'\n')
+  rutOut   = createDeltaRutkowskiNew(u,d)
+  deltaBigRut[,,iUDPair] = rutOut$delta
+  ## Computing average total delta
+  totalDelta = apply(X = rutOut$delta,MARGIN = 2,FUN = sum)
+  avgTotalDelta = mean(totalDelta)
+  #
+  GMatrix  = rutOut$GMatrix    
+  HMatrix  = rutOut$HMatrix 
+  #
+  for (iPath in 1:nPaths) {
+    path     = pathMatrix[,iPath]
+    G        = rutOut$GMatrix [,iPath]
+    shareQt  = G/path
+    costRut  = createTCosts(path,shareQt,lambda,mu)
+    costBigRut[,iPath,iUDPair]   = costRut
+    portBigRut[,1,iPath,iUDPair] = GMatrix[,iPath]
+    portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
+  }  # end iPath loop
+  ### Computing average total cost
+  totalCost = apply(X = costBigRut[,,iUDPair],2,sum)
+  avgTotalCost = mean(totalCost)
+  ###
+  # result is iUDPair, avgTotalDelta, avgTotalCost rbind-ed by foreach loop
+  result = c(iUDPair=iUDPair,avgTotalDelta=avgTotalDelta,avgTotalCost=avgTotalCost)
+}  #end iUDPair loop 
+#
