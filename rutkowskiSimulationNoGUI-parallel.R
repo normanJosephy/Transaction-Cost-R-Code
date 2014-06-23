@@ -9,7 +9,14 @@ setup = function() {
  cl = makeCluster(2)
  registerDoParallel(cl) 
 cat('\n Number of parallel workers: ',getDoParWorkers())
-                    }
+        }
+
+clusterExport(cl,c("createDeltaRutkowskiNew",
+                   "createTCosts",
+                   "computedEnv",
+                   "myEnv",
+                   "collectGHRutkowski"))
+
 #
 # source('ibmConstantsNew.R')
 # 
