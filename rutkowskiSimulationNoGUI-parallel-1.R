@@ -5,14 +5,28 @@ require(doParallel) # Loads parallel, iterators and foreach
 # require(foreach)  
 #registerDoParallel(cores=2)
 
-setup = function() {
- cl = makeCluster(2)
- registerDoParallel(cl) 
-cat('\n Number of parallel workers: ',getDoParWorkers())
-    }
+varToExport = c("createDeltaRutkowskiNew",
+                "createTCosts",
+                "collectGHRutkowski",
+                "rutkowskiDelta",
+                "prob",
+                "stock",
+                "computeF1F2",
+                "HG",
+                "optionPriceRut",
+                "callPayoffGH",
+                "fAtExpiration",
+                "updateF",
+                "myEnv",
+                "computedEnv",
+                "timeNames")
 
-endCluster = function() stopCluster(cl = cl)
-
+# 
+# 
+#  cl = makeCluster(2)
+#  registerDoParallel(cl) 
+#  cat('\n Number of parallel workers: ',getDoParWorkers())
+#  clusterExport(cl=cl,varlist=varToExport)                    
 #
 # source('ibmConstantsNew.R')
 # 
@@ -90,8 +104,9 @@ rSimulationParallel = function() {
   cat("\n Step 6\n Loop over contour pairs\n\n")
   flush.console()
   #
+  clusterExport(cl=cl,varlist=varToExport)    
   answer = foreach(iUDPair = 1:nUDPairsToUseRut,.combine=rbind) %dopar% {  # loop over ud pairs
-    ud = udMatrixRut[iUDPair,]
+    ud = computedEnv$udMatrixRut[iUDPair,]
     u = ud[1]
     d = ud[2] 
 #    cat("\n u,d pair: ",iUDPair," out of ",nUDPairsToUseRut,'\n')
@@ -124,11 +139,13 @@ rSimulationParallel = function() {
   # Plot netDelta
   #
   netDelta = answer[,2] - answer[,3]
-  plot(1:nUDPairsToUseRut,netDelta,type='l',main="Net Delta vs. (u,d) pair")
+  plot(1:nUDPairsToUseRut,netDelta,
+       type='l',xlab="(u,d)",ylab=expression(paste("Net ",Delta)),
+       main="Net Delta vs. (u,d) pair")
   maxLoc = which.max(netDelta)
   udMax  = udMatrixRut[maxLoc,]
-  uMax   = round(udMax[1],digits=3)
-  dMax   = round(udMax[2],digits=3)
+  uMax   = round(ud[1],digits=3)
+  dMax   = round(ud[2],digits=3)
   points(x = maxLoc,y = netDelta[maxLoc], pch=19, cex=1.3,col='blue')
   label  = paste('(',uMax,',',dMax,')',sep="")
   text(x = maxLoc,y = netDelta[maxLoc],labels = label,pos = 1)
