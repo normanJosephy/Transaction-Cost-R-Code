@@ -72,7 +72,11 @@ rSimulationParallel2 = function() {
   costBigRut  = array(data=NA,dim=dimV,dimnames=dimN)
   deltaBigRut = array(data=NA,dim=dimD,dimnames=dimN1)
   portBigRut  = array(data=NA,dim=dimD1,dimnames=dimN2)
-  #
+
+  computedEnv$costBigRut=costBigRut
+  computedEnv$deltaBigRut=deltaBigRut
+  computedEnv$portBigRut=portBigRut
+
   # Step 6 Loop over contour pairs
   #
   cat("\n Step 6\n Loop over contour pairs\n\n")
@@ -81,6 +85,8 @@ rSimulationParallel2 = function() {
   # clusterExport(cl=cl,varlist=varToExport)    
 #  answer = foreach(iUDPair = 1:nUDPairsToUseRut,.combine=rbind) %dopar% {  # loop over ud pairs
   contourLoop = function(iUDPair) {
+    cat(iUDPair,' out of ',nUDPairsToUseRut,'\n')
+    flush.console()
     ud = computedEnv$udMatrixRut[iUDPair,]
     u = ud[1]
     d = ud[2] 
@@ -104,24 +110,21 @@ rSimulationParallel2 = function() {
       computedEnv$portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
     }  # end iPath loop
     ### Computing average total cost
-    totalCost = apply(X = costBigRut[,,iUDPair],2,sum)
+    ###
+    totalCost = apply(X = computedEnv$costBigRut[,,iUDPair],2,sum)
     avgTotalCost = mean(totalCost)
     ###
     # result is iUDPair, avgTotalDelta, avgTotalCost rbind-ed by foreach loop
-#     .GlobalEnv$computedEnv$deltaBigRut = deltaBigRut
-#     .GlobalEnv$computedEnv$costBigRut  = costBigRut
-#     .GlobalEnv$computedEnv$portBigRut  = portBigRut
     result = c(iUDPair=iUDPair,avgTotalDelta=avgTotalDelta,avgTotalCost=avgTotalCost)
   }  #end iUDPair contourloop function
   #############
-  answerList = mclapply(1:nUDPairsToUseRut,contourLoop,mc.cores=6)
+  answerList = mclapply(1:nUDPairsToUseRut,contourLoop,mc.cores=1)
   #############
   answer = matrix(NA,nrow=nUDPairsToUseRut,ncol=3)
   for (i in 1:nUDPairsToUseRut) answer[i,] = answerList[[i]]
-  ######################
-  browser()
-  return(NULL)
-  ######################
+######
+## Alternative to for loop:
+## answer = matrix(unlist(answerList),ncol=3,byrow=TRUE)
   #
   # Plot netDelta
   #
@@ -146,11 +149,11 @@ rSimulationParallel2 = function() {
   cat("\n Step 7\n Store output in computedEnv\n")
   flush.console()
   #
-  #################################################
+  ####
   #
   # Step 8 Save myEnv and computedEnv to data files
   #
-  cat("\n Step 8\n Save myEnv and computedEnv to data files\n")
+  cat("\n Step 8\n Save run ",myEnv$runNumber," myEnv and computedEnv to data files\n")
   flush.console()
   #
   fileName = paste(myEnv$WD,'/',paste(myEnv$stockName,myEnv$runNumber,sep=''),sep='')

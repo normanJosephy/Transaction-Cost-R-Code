@@ -1,25 +1,41 @@
 # rutkowskiSimulationNoGUI-parallel.R
 
-# require(parallel)
+
 require(doParallel) # Loads parallel, iterators and foreach
-# require(foreach)  
-#registerDoParallel(cores=2)
+ 
+# registerDoParallel(cores=36);cat('\n Number of parallel workers: ',getDoParWorkers())
+# 
 
-setup = function() {
- cl = makeCluster(2)
- registerDoParallel(cl) 
-cat('\n Number of parallel workers: ',getDoParWorkers())
-    }
+# varToExport = c("createDeltaRutkowskiNew",
+#                 "createTCosts",
+#                 "collectGHRutkowski",
+#                 "rutkowskiDelta",
+#                 "prob",
+#                 "stock",
+#                 "computeF1F2",
+#                 "HG",
+#                 "optionPriceRut",
+#                 "callPayoffGH",
+#                 "fAtExpiration",
+#                 "updateF",
+#                 "myEnv",
+#                 "computedEnv",
+#                 "timeNames")
 
-endCluster = function() stopCluster(cl = cl)
-
+# 
+# 
+#  cl = makeCluster(2)
+#  registerDoParallel(cl) 
+#  cat('\n Number of parallel workers: ',getDoParWorkers())
+#  clusterExport(cl=cl,varlist=varToExport)                    
 #
 # source('ibmConstantsNew.R')
 # 
 
 # TO RUN SIMULATION:
-#   1. Edit contents of ibmConstantsNew() in file ibmConstantsNew.R 
-#   2. Source ibmConstantsNew.R:  source('ibmConstantsNew.R')
+#   0. registerDoParallel(cores=36)
+#   1. Edit contents of ibmConstantsNew1() in file ibmConstantsNew-1.R 
+#   2. Source ibmConstantsNew-1.R:  source('ibmConstantsNew-1.R')
 #   3. Run rSimulationParallel()
 
 rSimulationParallel = function() {
@@ -29,7 +45,7 @@ rSimulationParallel = function() {
   cat("\n Step 1\n Record simulation constants in environment myEnv\n")
   flush.console()
   #
-  ibmConstantsNew()
+  ibmConstantsNew1()
   #
   # Step 2 Construct stock price paths
   #
@@ -75,34 +91,39 @@ rSimulationParallel = function() {
   thdN     = paste('u:',uvector,' d:',dvector,sep='')
   dimN     = list(rowN,colN,thdN)
   dimV     = c(nFlips+1,nPaths,nUDPairsToUseRut)
-#  dimD     = c(nFlips,nPaths,nUDPairsToUseRut)
-#  dimD1    = c(nFlips+1,2,nPaths,nUDPairsToUseRut)
-#  colN1    = c('stock $','bond $')
-#  rowN1    = paste('time-',1:nFlips,sep='')
-#  dimN1    = list(rowN1,colN,thdN)
-#  dimN2    = list(rowN,colN1,colN,thdN)
+  dimD     = c(nFlips,nPaths,nUDPairsToUseRut)
+  dimD1    = c(nFlips+1,2,nPaths,nUDPairsToUseRut)
+  colN1    = c('stock $','bond $')
+  rowN1    = paste('time-',1:nFlips,sep='')
+  dimN1    = list(rowN1,colN,thdN)
+  dimN2    = list(rowN,colN1,colN,thdN)
   costBigRut  = array(data=NA,dim=dimV,dimnames=dimN)
-#  deltaBigRut = array(data=NA,dim=dimD,dimnames=dimN1)
-#  portBigRut  = array(data=NA,dim=dimD1,dimnames=dimN2)
+  deltaBigRut = array(data=NA,dim=dimD,dimnames=dimN1)
+  portBigRut  = array(data=NA,dim=dimD1,dimnames=dimN2)
+  computedEnv$costBigRut  = array(data=NA,dim=dimV,dimnames=dimN)
+  computedEnv$deltaBigRut = array(data=NA,dim=dimD,dimnames=dimN1)
+  computedEnv$portBigRut  = array(data=NA,dim=dimD1,dimnames=dimN2)
   #
   # Step 6 Loop over contour pairs
   #
   cat("\n Step 6\n Loop over contour pairs\n\n")
   flush.console()
   #
+  # clusterExport(cl=cl,varlist=varToExport)    
   answer = foreach(iUDPair = 1:nUDPairsToUseRut,.combine=rbind) %dopar% {  # loop over ud pairs
-    ud = udMatrixRut[iUDPair,]
+  #
+    ud = computedEnv$udMatrixRut[iUDPair,]
     u = ud[1]
     d = ud[2] 
 #    cat("\n u,d pair: ",iUDPair," out of ",nUDPairsToUseRut,'\n')
     rutOut   = createDeltaRutkowskiNew(u,d)
-#    deltaBigRut[,,iUDPair] = rutOut$delta
+    deltaBigRut[,,iUDPair] = rutOut$delta
     ## Computing average total delta
     totalDelta = apply(X = rutOut$delta,MARGIN = 2,FUN = sum)
     avgTotalDelta = mean(totalDelta)
-    #
-#    GMatrix  = rutOut$GMatrix    
-#    HMatrix  = rutOut$HMatrix 
+#    
+    GMatrix  = rutOut$GMatrix    
+    HMatrix  = rutOut$HMatrix 
     #
     for (iPath in 1:nPaths) {
       path     = pathMatrix[,iPath]
@@ -110,21 +131,37 @@ rSimulationParallel = function() {
       shareQt  = G/path
       costRut  = createTCosts(path,shareQt,lambda,mu)
       costBigRut[,iPath,iUDPair]   = costRut
-#      portBigRut[,1,iPath,iUDPair] = GMatrix[,iPath]
-#      portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
+      portBigRut[,1,iPath,iUDPair] = GMatrix[,iPath]
+      portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
     }  # end iPath loop
     ### Computing average total cost
     totalCost = apply(X = costBigRut[,,iUDPair],2,sum)
     avgTotalCost = mean(totalCost)
     ###
+    # Save delta,cost and port big matrices in computedEnv environment
+    #
+    #
+    #
+    computedEnv$deltaBigRut[,,iUDPair] = deltaBigRut[,,iUDPair]
+    computedEnv$costBigRut[,,iUDPair] = costBigRut[,,iUDPair]
+    computedEnv$portBigRut[,,,iUDPair] = portBigRut[,,,iUDPair] 
     # result is iUDPair, avgTotalDelta, avgTotalCost rbind-ed by foreach loop
     result = c(iUDPair=iUDPair,avgTotalDelta=avgTotalDelta,avgTotalCost=avgTotalCost)
   }  #end iUDPair loop 
+  ###############
+  #  STOP COMPUTATION AT THIS POINT
+  #  NO DATA SAVED IN LOOP OTHER THAN THE result TUPLE.
+  browser()
+#  return(answer)
+  #
+  #
   #
   # Plot netDelta
   #
   netDelta = answer[,2] - answer[,3]
-  plot(1:nUDPairsToUseRut,netDelta,type='l',main="Net Delta vs. (u,d) pair")
+  plot(1:nUDPairsToUseRut,netDelta,
+       type='l',xlab="(u,d)",ylab=expression(paste("Net ",Delta)),
+       main="Net Delta vs. (u,d) pair")
   maxLoc = which.max(netDelta)
   udMax  = udMatrixRut[maxLoc,]
   uMax   = round(udMax[1],digits=3)
@@ -132,19 +169,14 @@ rSimulationParallel = function() {
   points(x = maxLoc,y = netDelta[maxLoc], pch=19, cex=1.3,col='blue')
   label  = paste('(',uMax,',',dMax,')',sep="")
   text(x = maxLoc,y = netDelta[maxLoc],labels = label,pos = 1)
-  ###############
-  #  STOP COMPUTATION AT THIS POINT
-  #  NO DATA SAVED IN LOOP OTHER THAN THE result TUPLE.
-  return(answer)
-  #
-  # Step 7 Store output in computedEnv
+    # Step 7 Store output in computedEnv
   #
   cat("\n Step 7\n Store output in computedEnv\n")
   flush.console()
   #
-  computedEnv$deltaBigRut = deltaBigRut
-  computedEnv$costBigRut  = costBigRut
-  computedEnv$portBigRut  = portBigRut
+#   computedEnv$deltaBigRut = deltaBigRut
+#   computedEnv$costBigRut  = costBigRut
+#   computedEnv$portBigRut  = portBigRut
   #
   # Step 8 Save myEnv and computedEnv to data files
   #
