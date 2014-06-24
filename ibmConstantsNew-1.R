@@ -19,7 +19,7 @@ source("testCreateFunctionsNew.R")
 loadEnv = function() {
   envFiles = choose.files(multi=TRUE,filters=Filters['RData',])
   nFiles = length(envFiles)
-  stopifnot(length(nFiles > 0))
+  stopifnot(length(nFiles) > 0)
   for (i in 1:nFiles) {
     load(envFiles[i],envir=.GlobalEnv)
     cat("\n Loaded ",envFiles[i],'\n')
@@ -45,8 +45,8 @@ ibmConstantsNew1 = function() {
   myEnv = new.env()
   computedEnv = new.env()
   with(myEnv,{
-   runNumber = 996
-   stockName='F'
+   runNumber = 992
+   stockName='KRFT'
    baseDir = getwd()
    WD = paste(baseDir,'data',sep='/')  
    stockPriceFileName = paste(stockName,'Data2014.RData',sep='')
@@ -57,10 +57,10 @@ ibmConstantsNew1 = function() {
    oType      = 'call'
    nDaysInYear = 252
    S0          = NA           # stock price at time option price is noted.
-   K           = 15           # call option strike price
-   optionPrice = 1.50         # option price
+   K           = 60           # call option strike price
+   optionPrice = 2.26         # option price
    nFlips      = 6            # number of rebalancing times.
-   TimeToExpiration = 1       # time to expiration in years
+   TimeToExpiration = 0.5       # time to expiration in years
   #
   # R           = K/S0         # normalized strike - used in CRR contour computation
   # S0 assigned in createPathsFromIBMPricesUpdatedNoGUI()

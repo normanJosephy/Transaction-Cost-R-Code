@@ -12,6 +12,11 @@ require(parallel)
 
 rSimulationParallel2 = function() {
   #
+  # step 0 Test out compilation
+  #
+  #  require(compiler)
+  #  enableJIT(1)
+  #
   # Step 1 Record simulation constants in environment myEnv
   #
   cat("\n Step 1\n Record simulation constants in environment myEnv\n")
@@ -72,11 +77,12 @@ rSimulationParallel2 = function() {
   costBigRut  = array(data=NA,dim=dimV,dimnames=dimN)
   deltaBigRut = array(data=NA,dim=dimD,dimnames=dimN1)
   portBigRut  = array(data=NA,dim=dimD1,dimnames=dimN2)
-
+#
   computedEnv$costBigRut=costBigRut
   computedEnv$deltaBigRut=deltaBigRut
   computedEnv$portBigRut=portBigRut
-
+  #
+  #
   # Step 6 Loop over contour pairs
   #
   cat("\n Step 6\n Loop over contour pairs\n\n")
@@ -110,7 +116,6 @@ rSimulationParallel2 = function() {
       computedEnv$portBigRut[,2,iPath,iUDPair] = HMatrix[,iPath]
     }  # end iPath loop
     ### Computing average total cost
-    ###
     totalCost = apply(X = computedEnv$costBigRut[,,iUDPair],2,sum)
     avgTotalCost = mean(totalCost)
     ###
